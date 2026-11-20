@@ -205,14 +205,14 @@ function bot(t,P,lv,sl){
     if(B.panicT0==null){B.panicT0=t;B.smile.x=0;B.smile.v=0;B.daze=null;B.wake=-9;B.landN=2;B.wiggle=-9;B.intro=null;B.hop.x=0;B.hop.v=0;
       B.ew.x=1.45;B.ew.v=0;B.len.x=1.35;B.len.v=0;B.open.x=1}
     var pt=t-B.panicT0;B.smile.t=0;B.next=t+0.5;B.nextBlink=t+0.6;B.nextDaze=t+8;
-    if(pt<0.22){B.ew.t=1.45;B.len.t=1.35;B.fx.t=B.fx.x}else if(pt<0.45){B.ew.t=0.95;B.len.t=0.9;B.fx.t=0;B.fy.t=0;B.pnext=t}
+    if(pt<0.18){B.ew.t=1.45;B.len.t=1.35;B.fx.t=B.fx.x}else if(pt<0.36){B.ew.t=0.95;B.len.t=0.9;B.fx.t=0;B.fy.t=0;B.pnext=t}
     else if(otherSeen(sl)){B.ew.t=1.15;B.len.t=1.05;B.fx.t=-Math.sign(sl)*0.45;B.fy.t=0;B.rot.t=0}
-    else{B.ew.t=1.25;B.len.t=1.1;if(t>(B.pnext||0)){B.fx.t=rnd(-.42,.42);B.fy.t=rnd(-.36,.3);B.rot.t=rnd(-10,10);B.pnext=t+rnd(.22,.6)}}}
+    else{B.ew.t=1.25;B.len.t=1.1;if(t>(B.pnext||0)){B.fx.t=rnd(-.42,.42);B.fy.t=rnd(-.36,.3);B.rot.t=rnd(-10,10);B.pnext=t+rnd(.17,.48)}}}
   else if(B.oth&&otherSeen(sl)){B.fx.t=-Math.sign(sl)*0.4;B.fy.t=0;B.rot.t=0;B.next=t+0.6}
   else{B.panicT0=null;if(B.ew.t>1.2&&!startled){B.ew.t=1;B.len.t=1}}
   // --- springs ---
   var sub=4,h=dt/sub;for(var i=0;i<sub;i++){
-    step(B.fx,panic?20:(work?11:6),panic?.6:(work?.85:.5),h);step(B.fy,intro>=0?22:(panic?20:(work?11:6)),panic?.6:(work?.85:.5),h);step(B.rot,8,.6,h);
+    step(B.fx,panic?26:(work?11:6),panic?.55:(work?.85:.5),h);step(B.fy,intro>=0?22:(panic?26:(work?11:6)),panic?.55:(work?.85:.5),h);step(B.rot,8,.6,h);
     step(B.open,40,.7,h);step(B.len,startled?40:10,startled?.5:.8,h);step(B.smile,(intro>=0||wk<1.2)?14:4.5,1,h);step(B.ew,30,.55,h);step(B.hop,16,.35,h);step(B.pop,13,.35,h);step(B.jig,24,.16,h);step(B.squash,18,.3,h)}
   B.squash.t=1;
   // --- geometry ---
@@ -231,7 +231,7 @@ function bot(t,P,lv,sl){
   var cur={fx:B.fx.x,fy:B.fy.x,rot:B.rot.x,ew:B.ew.x,len:B.len.x,open:B.open.x,smile:B.smile.x};
   if(Math.abs(sl)>1){var sg=Math.sign(sl),oX=W/2+sl-sg*slotD(),o;
     if(B.oth)o=B.oth;else{if(!B.nb||B.nb.sg!==sg)B.nb={sg:sg,pal:pal(ed.voices[(vi-sg+ed.voices.length)%ed.voices.length].id),e:{fx:sg*0.2,fy:0,rot:0,ew:1,len:1,open:1,smile:0}};o=B.nb}
-    var oe=o.e,k8=0.8*0.18;oe.fx+=(sg*0.45-oe.fx)*k8;oe.fy+=(0-oe.fy)*k8;oe.rot*=0.9;oe.smile*=0.85;oe.open=1;
+    var oe=o.e,k8=0.18;oe.fx+=(sg*0.45-oe.fx)*k8;oe.fy+=(0-oe.fy)*k8;oe.rot*=0.9;oe.smile*=0.85;oe.open=1;
     if(B.oth){oe.ew+=(1.15-oe.ew)*k8;oe.len+=(1.05-oe.len)*k8}
     drawBall(oX,Y,R0*(0.94),1,1,0,o.pal,0,oe)}
   else B.nb=null;
