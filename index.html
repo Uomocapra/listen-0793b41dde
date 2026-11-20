@@ -318,6 +318,22 @@ function toggleLyr(on){showLyr=on;$('mText').style.display=on?'none':'';MC.hidde
 /* ---------- player ---------- */
 function V(){return ed.voices[vi]}
 function setIcon(){$('ico').innerHTML=A.paused?'<path d="M8 5.5v13l11-6.5z"/>':'<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>';$('play').setAttribute('aria-label',A.paused?'播放':'暂停')}
+/* audio sources, tried in order. Mom's network (2026-11-20) loaded the page but not the mp3, so if the own copy
+   doesn't start within a few seconds, switch to the jsDelivr mirrors of the same files. */
+var MIRRORS=['','https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/'];
+var srcIdx=0,srcTimer=0,lastErr='';
+function srcFor(v,i){return MIRRORS[i]+v.url}
+function trySource(i,autoplay){
+  var v=V();if(!v)return;srcIdx=i;clearTimeout(srcTimer);
+  var keepT=A.currentTime||0;A.src=srcFor(v,i);A.load();A.playbackRate=prefs.rate||1;
+  if(keepT)A.addEventListener('loadedmetadata',function(){try{A.currentTime=keepT}catch(e){}},{once:true});
+  if(autoplay)A.play().catch(function(e){lastErr=e&&e.name||'';});
+  srcTimer=setTimeout(function(){if(A.readyState<1)nextSource('timeout')},8000)}
+function nextSource(why){lastErr=why||lastErr;var wasWanted=wantPlay;
+  if(srcIdx+1<MIRRORS.length){trySource(srcIdx+1,wasWanted)}
+  else{$('err').textContent='声音加载不出来（'+lastErr+'），请换个网络或稍后再点一次'}}
+var wantPlay=false;
+A.addEventListener('loadedmetadata',function(){clearTimeout(srcTimer);$('err').textContent=''});
 function getEnv(v){return fetch(v.env).then(function(r){return r.ok?r.text():''}).then(function(s){if(!s)return null;var b=atob(s.trim()),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}).catch(function(){return null})}
 function getLines(v){return fetch(v.lines).then(function(r){return r.ok?r.json():[]}).catch(function(){return[]})}
 var loadSeq=0;
@@ -337,7 +353,7 @@ function useVoice(i,keepSentence){
   [].forEach.call($('dots').children,function(d,j){d.className=j===vi?'on':''});
   var swapAudio=function(){
     if(seq!==loadSeq)return;wasPlaying=!A.paused;sent=(keepSentence&&lines.length)?lineAt(A.currentTime):-1;
-    $('err').textContent='';A.pause();A.src=v.url;A.load();A.playbackRate=prefs.rate||1;
+    $('err').textContent='';A.pause();trySource(0,false);
     getEnv(v).then(function(u){if(seq===loadSeq)env=u});
     getLines(v).then(function(a){if(seq!==loadSeq)return;lines=a;render();
       var go=function(){if(sent>=0&&lines[sent])A.currentTime=lines[sent][0]+0.01;if(wasPlaying){B.noIntro=1;A.play().catch(function(){})}if(showLyr)follow(true)};
@@ -353,11 +369,11 @@ function pick(i){
   $('dots').innerHTML=ed.voices.map(function(){return'<i></i>'}).join('');
   var j=ed.voices.map(function(v){return v.id}).indexOf(prefs.voice);lines=[];useVoice(j<0?0:j,false)}
 
-$('play').onclick=function(){if(A.paused)A.play().catch(function(){$('err').textContent='播不出来，请检查网络后再点一次'});else A.pause()};
+$('play').onclick=function(){if(A.paused){wantPlay=true;$('err').textContent=A.readyState<1?'正在加载声音…':'';if(A.readyState<1){clearTimeout(srcTimer);srcTimer=setTimeout(function(){if(A.readyState<1)nextSource('timeout')},8000)}A.play().catch(function(e){lastErr=(e&&e.name)||'play';if(A.readyState<1)return;$('err').textContent='播不出来（'+lastErr+'），再点一次试试'})}else{wantPlay=false;A.pause()}};
 [].forEach.call(document.querySelectorAll('[data-skip]'),function(b){b.onclick=function(){var d=+b.getAttribute('data-skip');A.currentTime=Math.max(0,Math.min((A.duration||1e9)-0.2,A.currentTime+d));if(showLyr){curLn=-1;follow(true)}}});
 A.onplay=A.onpause=A.onended=setIcon;
 A.addEventListener('play',function(){if(B.noIntro){B.noIntro=0;return}B.introReq=1});
-A.onerror=function(){if(A.src)$('err').textContent='加载失败，请检查网络，或换个声音再试'};
+A.onerror=function(){if(!A.src)return;var c=A.error?A.error.code:0;nextSource('错误'+c)};
 
 /* progress bar: drag to any point */
 var seeking=false,S=$('seek');
