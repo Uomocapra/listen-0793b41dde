@@ -204,7 +204,8 @@ function useVoice(i,keepSentence){
   vi=(i+ed.voices.length)%ed.voices.length;var v=V();prefs.voice=v.id;save();
   palFrom=palTo?curPal():null;palTo=pal(v.id);palK=palFrom?0:1;
   document.documentElement.style.setProperty('--acc',rgb(palTo.b));
-  $('vBig').textContent=v.name.split(' · ')[0];$('cVoice').innerHTML='声音 <b>'+esc(v.name.split(' · ')[0])+'</b>';
+  var short=v.name.split(' · ')[0]+(/slow$/.test(v.id)?'·慢':'');
+  $('vBig').textContent=v.name;$('cVoice').innerHTML='声音 <b>'+esc(short)+'</b>';
   [].forEach.call($('dots').children,function(d,j){d.className=j===vi?'on':''});
   $('err').textContent='';A.pause();A.src=v.url;A.load();A.playbackRate=prefs.rate||1;
   getEnv(v).then(function(u){if(seq===loadSeq)env=u});
