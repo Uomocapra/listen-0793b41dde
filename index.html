@@ -225,7 +225,7 @@ function bot(t,P,lv,sl){
     else if(tau>=0&&tau<1){jy=-4*0.34*tau*(1-tau);var air=Math.sin(tau*Math.PI);jsx*=1-0.07*air;jsy*=1+0.1*air}
     if(tau>=1&&(B.landN||0)<=j&&wk<3){B.landN=j+1;B.jig.v+=9;if(j===1)B.wiggle=t}}
   var wg=t-(B.wiggle||-9),wig=wg>=0&&wg<1.6?0.16*Math.sin(wg*17)*Math.exp(-wg*3.2):0;
-  var X=W/2+sl+(panic?R*0.025*Math.sin(t*55):0),Y=(H-70)/2+8+B.hop.x*R*0.12+jy*R;
+  var X=W/2+sl,Y=(H-70)/2+8+B.hop.x*R*0.12+jy*R;
   var sq=B.squash.x,jg=B.jig.x,sx=(1+(sq-1)*0.06)*jsx*(1+0.13*jg),sy=(1-(sq-1)*0.06)*jsy*(1-0.13*jg);
   // --- carousel: the other ball sits one slot away (the neighbor while dragging, the old one after a switch) ---
   var cur={fx:B.fx.x,fy:B.fy.x,rot:B.rot.x,ew:B.ew.x,len:B.len.x,open:B.open.x,smile:B.smile.x};
