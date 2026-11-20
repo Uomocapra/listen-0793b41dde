@@ -179,9 +179,9 @@ function bot(t,P,lv,sl){
     B.fx.t=f0.fx+(k.fx-f0.fx)*e;B.fy.t=f0.fy+(k.fy-f0.fy)*e;B.len.t=f0.len+(k.len-f0.len)*e;B.rot.t=f0.rot+(k.rot-f0.rot)*e;
     if(t-B.wk.t0>k.mv+k.hold){B.wk={i:(B.wk.i+1)%WK.length,t0:t,from:{fx:k.fx,fy:k.fy,len:k.len,rot:k.rot}}}}
   else B.wk=null;
-  // daze (idle): eyes go flat (height a bit less than width), stare at one spot 2-3 s, then the ball pops bigger and smiles
+  // daze (idle): eyes go flat (height a bit less than width), stare at one spot 5 s (Mi 2026-11-20), then the ball pops bigger and smiles
   if(work||intro>=0){B.daze=null;B.nextDaze=t+rnd(8,13)}
-  else if(!B.daze&&t>(B.nextDaze||6)&&t>B.smileUntil+1){B.daze={t0:t,dur:rnd(2,3)};B.fx.t=rnd(-.25,.25);B.fy.t=rnd(-.1,.15);B.rot.t=0}
+  else if(!B.daze&&t>(B.nextDaze||6)&&t>B.smileUntil+1){B.daze={t0:t,dur:5};B.fx.t=rnd(-.25,.25);B.fy.t=rnd(-.1,.15);B.rot.t=0}
   if(B.daze){B.next=t+1;B.nextBlink=t+1;B.nextHop=t+2;B.len.t=0.32;
     if(t-B.daze.t0>B.daze.dur){B.daze=null;B.len.t=1;B.pop.v+=3.2;B.smileUntil=t+rnd(2.5,3.5);B.nextSmile=B.smileUntil+rnd(4,7);B.nextDaze=t+rnd(9,15)}}
   if(t>B.nextBlink){B.blinkAt=t;B.nextBlink=t+(work?rnd(2.5,5):rnd(1.4,3.6))}
