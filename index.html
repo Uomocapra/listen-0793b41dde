@@ -173,7 +173,7 @@ function center(el,smooth){autoUntil=Date.now()+(smooth?900:150);L.scrollTo({top
 function follow(force){
   if(!lines.length)return;var i=lineAt(A.currentTime);
   if(i===curLn&&!force)return;
-  var old=L.children[curLn];if(old)old.classList.remove('on');
+  [].forEach.call(L.querySelectorAll('.ln.on'),function(o){o.classList.remove('on')});
   curLn=i;var el=L.children[i];if(!el)return;el.classList.add('on');center(el,!force)}
 function centerLine(){var mid=L.scrollTop+L.clientHeight/2,best=0,bd=1e9;[].forEach.call(L.children,function(el,i){var d=Math.abs(el.offsetTop+el.offsetHeight/2-mid);if(d<bd){bd=d;best=i}});return best}
 var lastAim=-1;
@@ -232,7 +232,8 @@ var seeking=false,S=$('seek');
 function paint(p){S.style.setProperty('--p',(p/10)+'%')}
 A.ontimeupdate=A.onloadedmetadata=A.ondurationchange=function(){
   if(!seeking&&A.duration){S.value=Math.round(A.currentTime/A.duration*1000);paint(S.value)}
-  if(!seeking)$('cur').textContent=fmt(A.currentTime);$('dur').textContent=fmt(A.duration)};
+  if(!seeking)$('cur').textContent=fmt(A.currentTime);$('dur').textContent=fmt(A.duration);
+  if(showLyr&&!aiming)follow()};
 S.addEventListener('input',function(){seeking=true;paint(S.value);if(A.duration)$('cur').textContent=fmt(A.duration*S.value/1000)});
 S.addEventListener('change',function(){if(A.duration)A.currentTime=A.duration*S.value/1000;seeking=false;if(showLyr){curLn=-1;follow(true)}});
 
