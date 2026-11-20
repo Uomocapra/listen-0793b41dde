@@ -154,7 +154,6 @@ function spring(x){return{x:x,v:0,t:x}}
 function step(s,w,z,dt){s.v+=(-2*z*w*s.v-w*w*(s.x-s.t))*dt;s.x+=s.v*dt}
 var B={fx:spring(0),fy:spring(0),rot:spring(0),open:spring(1),len:spring(1),smile:spring(0),hop:spring(0),
   squash:spring(1),next:0,nextBlink:1.5,blinkAt:-9,smileUntil:0,nextSmile:3,nextHop:2,spin:null,nextSpin:4,last:0,trail:[]};
-var TR=['#f9705c','#f5b13f','#3fbe86','#35c3bd','#5b95f0','#9a72ee'];
 function rnd(a,b){return a+Math.random()*(b-a)}
 function bot(t,P,lv,sl){
   var dt=Math.min(0.05,t-(B.last||t));B.last=t;
@@ -190,15 +189,7 @@ function bot(t,P,lv,sl){
   cx.beginPath();cx.arc(0,0,R,0,7);cx.fillStyle=rgb(P.b);cx.fill();
   var sh=cx.createRadialGradient(-R*.3,-R*.35,R*.1,0,0,R);sh.addColorStop(0,'rgba(255,255,255,.14)');sh.addColorStop(1,'rgba(0,0,0,.10)');
   cx.fillStyle=sh;cx.fill();
-  // trails (only while the face moves fast)
-  var spd=Math.abs(B.fx.v)+Math.abs(B.fy.v)+(B.spin?6:0);if(spd>0.9)B.trailOn=t;
-  B.trail.push({x:fx,y:fy,a:t-(B.trailOn||-9)<0.25?1:0});if(B.trail.length>22)B.trail.shift();
-  cx.save();cx.beginPath();cx.arc(0,0,R*1.25,0,7);cx.clip();
-  for(var k=0;k<2;k++){var off=(k?1:-1)*0.235;
-    for(var j=1;j<B.trail.length;j++){var p0=B.trail[j-1],p1=B.trail[j];if(!p1.a||!p0.a||Math.abs(p1.x-p0.x)>0.6)continue;var q0=pos(p0.x+off,R),q1=pos(p1.x+off,R);
-      var al=j/B.trail.length;cx.strokeStyle=TR[(j+k*3)%TR.length];cx.globalAlpha=Math.min(1,al*1.3);cx.lineWidth=R*(0.06+0.16*al);cx.lineCap='round';
-      cx.beginPath();cx.moveTo(q0.x,q0.y+p0.y*R*0.55-R*0.06);cx.lineTo(q1.x,q1.y+p1.y*R*0.55-R*0.06);cx.stroke()}}
-  cx.globalAlpha=1;cx.restore();
+  // no colored trails (Mi 2026-11-20)
   // eyes, clipped to the ball and foreshortened near the edge like on a sphere
   cx.beginPath();cx.arc(0,0,R,0,7);cx.clip();
   cx.fillStyle='#fff';cx.strokeStyle='#fff';cx.lineCap='round';
