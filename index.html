@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="4">
+<meta name="ui-version" content="5">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -166,7 +166,7 @@ function nativeAudio(){ // looks like an <audio> element to the rest of the page
   o.pause=function(){NATIVE.pause()};
   Object.defineProperty(o,'currentTime',{get:function(){return st.pos},set:function(v){st.pos=v;NATIVE.seek(v)}});
   Object.defineProperty(o,'duration',{get:function(){return st.dur||NaN}});
-  Object.defineProperty(o,'paused',{get:function(){return !st.playing}});
+  Object.defineProperty(o,'paused',{get:function(){return !st.playing||!!st.err}}); // a failed source isn't playing, whatever the player wants
   Object.defineProperty(o,'readyState',{get:function(){return st.ready?4:0}});
   Object.defineProperty(o,'playbackRate',{get:function(){return _rate},set:function(v){_rate=v;NATIVE.setRate(v)}});
   Object.defineProperty(o,'error',{get:function(){return st.err?{code:st.err}:null}});
@@ -175,7 +175,7 @@ function nativeAudio(){ // looks like an <audio> element to the rest of the page
   setInterval(function(){var n;try{n=JSON.parse(NATIVE.state())}catch(e){return}
     if(n.src!==_src||n.pos===undefined)return;var was=st;st=n;
     if(n.ready&&!was.ready){emit('loadedmetadata');emit('durationchange')}
-    if(n.playing!==was.playing)emit(n.playing?'play':'pause');
+    var pl=n.playing&&!n.err,wpl=was.playing&&!was.err;if(pl!==wpl)emit(pl?'play':'pause');
     if(n.playing||n.pos!==was.pos)emit('timeupdate');
     if(n.ended&&!was.ended)emit('ended');
     if(n.err&&!was.err)emit('error')},250);
@@ -401,19 +401,25 @@ function setIcon(){$('ico').innerHTML=A.paused?'<path d="M8 5.5v13l11-6.5z"/>':'
    So gcore first; a source that doesn't start or stalls for a few seconds is swapped for the next one. */
 var GH='/gh/Uomocapra/listen-0793b41dde@main/';
 var MIRRORS=['https://gcore.jsdelivr.net'+GH,'https://testingcf.jsdelivr.net'+GH,NATIVE?'https://zippy-cannoli-b04b24.netlify.app/':'','https://fastly.jsdelivr.net'+GH];
-var srcIdx=0,srcTimer=0,lastErr='';
+var srcIdx=0,srcTimer=0,lastErr='',resumeAt=0,allFailed=false;
 function srcFor(v,i){return MIRRORS[i]+v.url}
-function trySource(i,autoplay){
-  var v=V();if(!v)return;srcIdx=i;clearTimeout(srcTimer);
-  var keepT=A.currentTime||0;A.src=srcFor(v,i);A.load();A.playbackRate=prefs.rate||1;
-  if(keepT)A.addEventListener('loadedmetadata',function(){try{A.currentTime=keepT}catch(e){}},{once:true});
+/* keepT: where to continue in this same recording (0 = from the start). It is carried along while sources fail one
+   after another, so a later source still starts at the right place. A new edition or voice passes 0. */
+function trySource(i,autoplay,keepT){
+  var v=V();if(!v)return;srcIdx=i;clearTimeout(srcTimer);allFailed=false;
+  resumeAt=keepT||0;A.src=srcFor(v,i);A.load();A.playbackRate=prefs.rate||1;
   if(autoplay)A.play().catch(function(e){lastErr=e&&e.name||'';});
   srcTimer=setTimeout(function(){if(A.readyState<1)nextSource('timeout')},8000)}
-function nextSource(why){lastErr=why||lastErr;var wasWanted=wantPlay;
-  if(srcIdx+1<MIRRORS.length){trySource(srcIdx+1,wasWanted)}
-  else{$('err').textContent='声音加载不出来（'+lastErr+'），请换个网络或稍后再点一次'}}
+function here(){return (A.readyState>=1&&A.currentTime)||resumeAt||0}
+function nextSource(why){lastErr=why||lastErr;var t=here();
+  if(srcIdx+1<MIRRORS.length){trySource(srcIdx+1,wantPlay,t)}
+  else{allFailed=true;resumeAt=t;$('err').textContent='网络不通，声音下载不下来。网好了会自动接着放'}}
+/* every source failed (no network): try again every 10 s and as soon as the phone says it is back online */
+function retryAll(){if(allFailed)trySource(0,wantPlay,resumeAt)}
+setInterval(retryAll,10000);window.addEventListener('online',function(){setTimeout(retryAll,1500)});
 var wantPlay=false;
-A.addEventListener('loadedmetadata',function(){clearTimeout(srcTimer);$('err').textContent=''});
+A.addEventListener('loadedmetadata',function(){clearTimeout(srcTimer);$('err').textContent='';
+  if(resumeAt){var t=resumeAt;resumeAt=0;try{A.currentTime=t}catch(e){}}});
 /* stalled playback: "playing" but the time doesn't move. Say so after 2 s; after 7 s try the next source,
    keeping the place. In the app, also warn when the phone's media volume is at zero. */
 var lastPos=-1,lastMove=Date.now(),stallMsg=false;
@@ -447,7 +453,7 @@ function useVoice(i,keepSentence){
   $('tocBtn').hidden=!(v.toc&&v.toc.length);
   var swapAudio=function(){
     if(seq!==loadSeq)return;wasPlaying=!A.paused;sent=(keepSentence&&lines.length)?lineAt(A.currentTime):-1;
-    $('err').textContent='';A.pause();trySource(0,false);
+    $('err').textContent='';var t=(keepSentence&&sent<0)?here():0;A.pause();trySource(0,false,t);
     getEnv(v).then(function(u){if(seq===loadSeq)env=u});
     getLines(v).then(function(a){if(seq!==loadSeq)return;lines=a;render();
       var go=function(){if(sent>=0&&lines[sent])A.currentTime=lines[sent][0]+0.01;if(wasPlaying){B.noIntro=1;A.play().catch(function(){})}if(showLyr)follow(true)};
@@ -463,7 +469,8 @@ function pick(i){
   $('dots').innerHTML=ed.voices.map(function(){return'<i></i>'}).join('');
   var j=ed.voices.map(function(v){return v.id}).indexOf(prefs.voice);lines=[];useVoice(j<0?0:j,false)}
 
-$('play').onclick=function(){if(A.paused){wantPlay=true;$('err').textContent=A.readyState<1?'正在加载声音…':'';if(A.readyState<1){clearTimeout(srcTimer);srcTimer=setTimeout(function(){if(A.readyState<1)nextSource('timeout')},8000)}A.play().catch(function(e){lastErr=(e&&e.name)||'play';if(A.readyState<1)return;$('err').textContent='播不出来（'+lastErr+'），再点一次试试'})}else{wantPlay=false;A.pause()}};
+$('play').onclick=function(){if(A.paused&&allFailed){wantPlay=true;$('err').textContent='正在加载声音…';trySource(0,true,resumeAt);return}
+  if(A.paused){wantPlay=true;$('err').textContent=A.readyState<1?'正在加载声音…':'';if(A.readyState<1){clearTimeout(srcTimer);srcTimer=setTimeout(function(){if(A.readyState<1)nextSource('timeout')},8000)}A.play().catch(function(e){lastErr=(e&&e.name)||'play';if(A.readyState<1)return;$('err').textContent='播不出来（'+lastErr+'），再点一次试试'})}else{wantPlay=false;A.pause()}};
 [].forEach.call(document.querySelectorAll('[data-skip]'),function(b){b.onclick=function(){var d=+b.getAttribute('data-skip');A.currentTime=Math.max(0,Math.min((A.duration||1e9)-0.2,A.currentTime+d));if(showLyr){curLn=-1;follow(true)}}});
 A.onplay=A.onpause=A.onended=setIcon;
 A.addEventListener('play',function(){if(B.noIntro){B.noIntro=0;return}B.introReq=1});
@@ -473,7 +480,7 @@ A.onerror=function(){if(!A.src)return;var c=A.error?A.error.code:0;nextSource('�
 var seeking=false,S=$('seek');
 function paint(p){S.style.setProperty('--p',(p/10)+'%')}
 A.ontimeupdate=A.onloadedmetadata=A.ondurationchange=function(){
-  if(!seeking&&A.duration){S.value=Math.round(A.currentTime/A.duration*1000);paint(S.value)}
+  if(!seeking){S.value=A.duration?Math.round(A.currentTime/A.duration*1000):0;paint(S.value)}
   if(!seeking)$('cur').textContent=fmt(A.currentTime);$('dur').textContent=fmt(A.duration);
   if(showLyr)follow();if(tocOn)markToc()};
 S.addEventListener('input',function(){seeking=true;paint(S.value);if(A.duration)$('cur').textContent=fmt(A.duration*S.value/1000)});
@@ -535,11 +542,16 @@ size();requestAnimationFrame(frame);
    upload step that can fail, the jsDelivr mirror can lag. Waits for all hosts, or 2.5 s after the first answer. */
 function fetchIndex(){
   if(REMOTE.length<2)return fetchAny('data/index.json?'+Date.now(),'json');
-  return new Promise(function(res,rej){var best=null,left=REMOTE.length,over=false;
-    function fin(){if(over)return;over=true;best?res(best):rej(new Error('no index'))}
+  return new Promise(function(res,rej){var best=null,all=[],left=REMOTE.length,over=false;
+    /* Netlify holds only the newest edition, jsDelivr the last three: keep the newest list and add the past
+       editions the others know, newest first, three at most (their audio is on jsDelivr) */
+    function fin(){if(over)return;over=true;if(!best)return rej(new Error('no index'));
+      var seen={},eds=[];all.forEach(function(d){d.editions.forEach(function(e){if(!seen[e.stem]){seen[e.stem]=1;eds.push(e)}})});
+      eds.sort(function(a,b){return a.stem<b.stem?1:a.stem>b.stem?-1:0});best.editions=eds.slice(0,3);res(best)}
     REMOTE.forEach(function(b){var c=window.AbortController?new AbortController():null;setTimeout(function(){if(c)c.abort()},9000);
       fetch(b+'data/index.json?'+Date.now(),{cache:'no-store',signal:c?c.signal:undefined}).then(function(r){return r.ok?r.json():null})
-        .then(function(d){if(d&&d.editions&&d.editions.length&&(!best||String(d.built)>String(best.built))){if(!best)setTimeout(fin,2500);best=d}})
+        .then(function(d){if(!d||!d.editions||!d.editions.length)return;all.push(d);
+          if(!best||String(d.built)>String(best.built)){if(!best)setTimeout(fin,2500);best=d}})
         .catch(function(){}).then(function(){if(--left===0)fin()})})})}
 /* Mom leaves the app in the background (back = keep running), so a new edition must also show up when she comes
    back: on return, and every few minutes, look for a newer list; switch only when nothing is playing. */
@@ -550,7 +562,9 @@ function refreshIndex(){
     if(d.editions[0].stem!==data.editions[0].stem&&String(d.built)>String(data.built)){data=d;pick(0)}}).catch(function(){})}
 document.addEventListener('visibilitychange',function(){if(!document.hidden)refreshIndex()});
 setInterval(refreshIndex,5*60e3);
-fetchIndex().then(function(d){data=d;pick(0)}).catch(function(){$('sub').textContent='加载失败，请检查网络后刷新'});
+/* first load; with no network, say so and keep trying (the app has no refresh button) */
+(function first(){fetchIndex().then(function(d){data=d;pick(0)}).catch(function(){
+  $('sub').textContent=NATIVE?'网络不通，网好了会自动加载':'加载失败，请检查网络后刷新';if(NATIVE)setTimeout(first,8000)})})();
 })();
 </script>
 </body>
