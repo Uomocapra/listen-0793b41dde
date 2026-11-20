@@ -168,7 +168,8 @@ function frame(now){
 var lines=[],curLn=-1,showLyr=false,aiming=false,aimTimer=0,L=$('lyr');
 function lineAt(t){var i=0;while(i+1<lines.length&&lines[i+1][0]<=t+0.05)i++;return i}
 function render(){L.innerHTML=lines.map(function(x,i){var hd=x[2].length<16&&/^(新闻|中国大事|外媒看中国|国际|先听要点|下面是详细内容)/.test(x[2]);return '<div class="ln'+(hd?' head':'')+'" data-i="'+i+'">'+esc(x[2])+'</div>'}).join('');curLn=-1}
-function center(el,smooth){L.scrollTo({top:el.offsetTop-L.clientHeight/2+el.offsetHeight/2,behavior:smooth?'smooth':'auto'})}
+var autoUntil=0;
+function center(el,smooth){autoUntil=Date.now()+(smooth?900:150);L.scrollTo({top:el.offsetTop-L.clientHeight/2+el.offsetHeight/2,behavior:smooth?'smooth':'auto'})}
 function follow(force){
   if(!lines.length)return;var i=lineAt(A.currentTime);
   if(i===curLn&&!force)return;
@@ -179,14 +180,16 @@ var lastAim=-1;
 function markAim(){var i=centerLine();if(i===lastAim)return;var o=L.children[lastAim];if(o)o.classList.remove('aim');lastAim=i;var e=L.children[i];if(e)e.classList.add('aim')}
 function userScrolling(){aiming=true;$('aim').classList.add('on');markAim();clearTimeout(aimTimer);
   aimTimer=setTimeout(function(){ // finger lifted and scroll settled: play the sentence in the middle
+    if(touching){userScrolling();return}
     var i=centerLine();$('aim').classList.remove('on');var o=L.children[lastAim];if(o)o.classList.remove('aim');lastAim=-1;
     if(lines[i]){A.currentTime=lines[i][0]+0.01;if(A.paused)A.play().catch(function(){})}
     aiming=false;curLn=-1;follow(true)},700)}
+// any scroll we did not start ourselves is the user browsing the text
 var touching=false;
-L.addEventListener('touchstart',function(){touching=true},{passive:true});
-L.addEventListener('touchend',function(){touching=false},{passive:true});
-L.addEventListener('scroll',function(){if(touching||aiming||wheelAt>Date.now()-300)userScrolling()},{passive:true});
-var wheelAt=0;L.addEventListener('wheel',function(){wheelAt=Date.now()},{passive:true});
+L.addEventListener('touchstart',function(){touching=true;autoUntil=0},{passive:true});
+L.addEventListener('touchend',function(){touching=false;if(aiming)userScrolling()},{passive:true});
+L.addEventListener('wheel',function(){autoUntil=0},{passive:true});
+L.addEventListener('scroll',function(){if(touching||aiming||Date.now()>autoUntil)userScrolling()},{passive:true});
 L.onclick=function(e){var d=e.target.closest('.ln');if(!d){toggleLyr(false);return}e.stopPropagation();clearTimeout(aimTimer);aiming=false;$('aim').classList.remove('on');A.currentTime=lines[+d.getAttribute('data-i')][0]+0.01;if(A.paused)A.play().catch(function(){});follow(true)};
 function toggleLyr(on){showLyr=on;L.hidden=!on;cv.style.visibility=on?'hidden':'visible';$('vlabel').style.opacity=on?0:1;$('vlabel').style.pointerEvents=on?'none':'';$('cText').textContent=on?'看球':'看文字';if(on){curLn=-1;follow(true)}}
 
