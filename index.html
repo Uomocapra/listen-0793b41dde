@@ -49,6 +49,10 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border:0;border-radiu
 .chips{display:flex;gap:8px;justify-content:center;max-width:520px}
 .chip{border:0;background:var(--chip);color:var(--fg);font:inherit;font-size:15px;padding:9px 13px;border-radius:999px;white-space:nowrap}
 .chip b{font-weight:600}
+.mode{position:fixed;left:calc(14px + env(safe-area-inset-left));top:calc(14px + env(safe-area-inset-top));width:46px;height:46px;border-radius:50%;border:0;padding:0;background:var(--chip);color:var(--fg);display:flex;align-items:center;justify-content:center;z-index:5}
+.mode svg{width:24px;height:24px}
+.mode canvas{width:46px;height:46px;border-radius:50%}
+.mode [hidden]{display:none}
 .err{color:#ff453a;font-size:15px;min-height:0;text-align:center}
 .mask{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s}
 .mask.on{opacity:1;pointer-events:auto}
@@ -66,6 +70,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border:0;border-radiu
 </head>
 <body>
 <div class="app">
+  <button class="mode" id="mode" type="button" aria-label="看文字"><svg id="mText" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 10.5h12M4 15h16M4 19.5h9"/></svg><canvas id="mini" hidden></canvas></button>
   <header>
     <div id="title">听新闻</div>
     <div id="sub">加载中…</div>
@@ -136,7 +141,7 @@ function curPal(){
   return{a:mix(f.a,palTo.a,k),b:mix(f.b,palTo.b,k),c:mix(f.c,palTo.c,k),g:mix(f.g,palTo.g,k),cl:k<.5?f.cl:palTo.cl}}
 function frame(now){
   requestAnimationFrame(frame);
-  if(showLyr){if(!aiming)follow();return}
+  if(showLyr){if(!aiming)follow();if(palTo)drawMini(now/1000);return}
   if(!palTo)return;
   var t=(now-t0)/1000,tg=target(),P=curPal();
   lvl+=(tg-lvl)*(tg>lvl?0.35:0.12);
@@ -297,7 +302,18 @@ L.addEventListener('touchend',function(){touching=false;if(aiming)userScrolling(
 L.addEventListener('wheel',function(){autoUntil=0},{passive:true});
 L.addEventListener('scroll',function(){if(touching||aiming||Date.now()>autoUntil)userScrolling()},{passive:true});
 L.onclick=function(e){var d=e.target.closest('.ln');if(!d){toggleLyr(false);return}e.stopPropagation();clearTimeout(aimTimer);aiming=false;$('aim').classList.remove('on');A.currentTime=lines[+d.getAttribute('data-i')][0]+0.01;if(A.paused)A.play().catch(function(){});follow(true)};
-function toggleLyr(on){showLyr=on;L.hidden=!on;cv.style.visibility=on?'hidden':'visible';$('vlabel').style.opacity=on?0:1;$('vlabel').style.pointerEvents=on?'none':'';if(on){curLn=-1;follow(true)}}
+/* top-left button: in ball view it shows a text icon; in text view it shows a tiny ball doing the Grok Bot idle (glances, blinks) */
+var MC=$('mini'),mcx=MC.getContext('2d'),M={fx:0,fy:0,tx:0,ty:0,next:0,blink:-9,nextBlink:1};
+function drawMini(t){
+  var d=Math.min(2,window.devicePixelRatio||1),S=46;if(MC.width!==S*d){MC.width=MC.height=S*d}
+  if(t>M.next){M.tx=rnd(-.4,.4);M.ty=rnd(-.3,.25);M.next=t+rnd(.6,2.2)}
+  if(t>M.nextBlink){M.blink=t;M.nextBlink=t+rnd(1.6,4)}
+  M.fx+=(M.tx-M.fx)*0.12;M.fy+=(M.ty-M.fy)*0.12;
+  var keep=cx;cx=mcx;cx.setTransform(d,0,0,d,0,0);cx.clearRect(0,0,S,S);
+  drawBall(S/2,S/2,18+0.6*Math.sin(t*1.6),1,1,0,palTo,0,{fx:M.fx,fy:M.fy,rot:0,ew:1,len:1,open:(t-M.blink)<0.09?0.08:1,smile:0});
+  cx=keep}
+$('mode').onclick=function(){toggleLyr(!showLyr)};
+function toggleLyr(on){showLyr=on;$('mText').style.display=on?'none':'';MC.hidden=!on;$('mode').setAttribute('aria-label',on?'看球':'看文字');L.hidden=!on;cv.style.visibility=on?'hidden':'visible';$('vlabel').style.opacity=on?0:1;$('vlabel').style.pointerEvents=on?'none':'';if(on){curLn=-1;follow(true)}}
 
 /* ---------- player ---------- */
 function V(){return ed.voices[vi]}
