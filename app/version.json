@@ -1,12 +1,12 @@
 {
- "code": 9,
- "name": "1.0.9",
- "size": 5327333,
- "sha256": "19f1b19663445e71b9b59231105b2ae7f9cafe3f64530bb188767425662c3a78",
- "note": "这一版声音出来更快，右上角多了目录。",
+ "code": 15,
+ "name": "1.0.15",
+ "size": 5328817,
+ "sha256": "0b9609d2b8227c48be4b81236ac03d4f6d9aeb5d10c2153c4a95196475133575",
+ "note": "这一版：按返回键会先关掉打开的列表；网断了再连上，会自己接着放。",
  "urls": [
-  "https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@10756b6e7c333dad8fbe9be5d07281cc6a893a41/app/tingxinwen.apk",
-  "https://testingcf.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@10756b6e7c333dad8fbe9be5d07281cc6a893a41/app/tingxinwen.apk",
-  "https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@10756b6e7c333dad8fbe9be5d07281cc6a893a41/app/tingxinwen.apk"
+  "https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@f9caa4d8a7e069c43fa7ea8ecb9f5601e0b1f0fe/app/tingxinwen.apk",
+  "https://testingcf.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@f9caa4d8a7e069c43fa7ea8ecb9f5601e0b1f0fe/app/tingxinwen.apk",
+  "https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@f9caa4d8a7e069c43fa7ea8ecb9f5601e0b1f0fe/app/tingxinwen.apk"
  ]
 }
