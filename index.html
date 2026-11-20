@@ -107,6 +107,37 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border:0;border-radiu
 <script>
 (function(){
 var $=function(i){return document.getElementById(i)},A=$('a');
+/* Inside the Android app the page is a local file and the app plays the audio (screen off, lock screen).
+   NativePlayer is the app's bridge; data and audio then come from these hosts, tried in order. */
+var NATIVE=window.NativePlayer||null;
+var REMOTE=NATIVE?['https://zippy-cannoli-b04b24.netlify.app/','https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/']:[''];
+function fetchAny(path,kind){var i=0;return new Promise(function(res,rej){(function go(){if(i>=REMOTE.length)return rej(new Error('all failed'));
+  fetch(REMOTE[i++]+path,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(r.status);return kind==='json'?r.json():r.text()}).then(res).catch(go)})()})}
+function nativeAudio(){ // looks like an <audio> element to the rest of the page, but drives the app's player
+  var L={},o={},_src='',_rate=1,st={pos:0,dur:0,playing:false,ready:false,ended:false,err:0};
+  function emit(t){var ev={type:t},h=o['on'+t];if(h)try{h.call(o,ev)}catch(e){}
+    (L[t]||[]).slice().forEach(function(x){try{x.fn.call(o,ev)}catch(e){}if(x.once)L[t]=L[t].filter(function(y){return y!==x})})}
+  o.addEventListener=function(t,fn,opt){(L[t]=L[t]||[]).push({fn:fn,once:!!(opt&&opt.once)})};
+  o.removeEventListener=function(t,fn){L[t]=(L[t]||[]).filter(function(x){return x.fn!==fn})};
+  Object.defineProperty(o,'src',{get:function(){return _src},set:function(v){_src=v;st={pos:0,dur:0,playing:st.playing,ready:false,ended:false,err:0}}});
+  o.load=function(){var v=(typeof V==='function'&&ed)?V():null;NATIVE.setSource(_src,(ed?ed.title+' · '+ed.sub.split('　')[0]:'听新闻'),v?v.name:'')};
+  o.play=function(){NATIVE.play();return Promise.resolve()};
+  o.pause=function(){NATIVE.pause()};
+  Object.defineProperty(o,'currentTime',{get:function(){return st.pos},set:function(v){st.pos=v;NATIVE.seek(v)}});
+  Object.defineProperty(o,'duration',{get:function(){return st.dur||NaN}});
+  Object.defineProperty(o,'paused',{get:function(){return !st.playing}});
+  Object.defineProperty(o,'readyState',{get:function(){return st.ready?4:0}});
+  Object.defineProperty(o,'playbackRate',{get:function(){return _rate},set:function(v){_rate=v;NATIVE.setRate(v)}});
+  Object.defineProperty(o,'error',{get:function(){return st.err?{code:st.err}:null}});
+  setInterval(function(){var n;try{n=JSON.parse(NATIVE.state())}catch(e){return}
+    if(n.src!==_src||n.pos===undefined)return;var was=st;st=n;
+    if(n.ready&&!was.ready){emit('loadedmetadata');emit('durationchange')}
+    if(n.playing!==was.playing)emit(n.playing?'play':'pause');
+    if(n.playing||n.pos!==was.pos)emit('timeupdate');
+    if(n.ended&&!was.ended)emit('ended');
+    if(n.err&&!was.err)emit('error')},250);
+  return o}
+if(NATIVE)A=nativeAudio();
 var data=null,ed=null,vi=0,env=null,KEY='fn.prefs';
 var prefs=(function(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return{}}})();
 function save(){try{localStorage.setItem(KEY,JSON.stringify(prefs))}catch(e){}}
@@ -320,7 +351,7 @@ function V(){return ed.voices[vi]}
 function setIcon(){$('ico').innerHTML=A.paused?'<path d="M8 5.5v13l11-6.5z"/>':'<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>';$('play').setAttribute('aria-label',A.paused?'播放':'暂停')}
 /* audio sources, tried in order. Mom's network (2026-11-20) loaded the page but not the mp3, so if the own copy
    doesn't start within a few seconds, switch to the jsDelivr mirrors of the same files. */
-var MIRRORS=['','https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/'];
+var MIRRORS=NATIVE?REMOTE.slice():['','https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/'];
 var srcIdx=0,srcTimer=0,lastErr='';
 function srcFor(v,i){return MIRRORS[i]+v.url}
 function trySource(i,autoplay){
@@ -334,8 +365,8 @@ function nextSource(why){lastErr=why||lastErr;var wasWanted=wantPlay;
   else{$('err').textContent='声音加载不出来（'+lastErr+'），请换个网络或稍后再点一次'}}
 var wantPlay=false;
 A.addEventListener('loadedmetadata',function(){clearTimeout(srcTimer);$('err').textContent=''});
-function getEnv(v){return fetch(v.env).then(function(r){return r.ok?r.text():''}).then(function(s){if(!s)return null;var b=atob(s.trim()),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}).catch(function(){return null})}
-function getLines(v){return fetch(v.lines).then(function(r){return r.ok?r.json():[]}).catch(function(){return[]})}
+function getEnv(v){return fetchAny(v.env,'text').then(function(s){if(!s)return null;var b=atob(s.trim()),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}).catch(function(){return null})}
+function getLines(v){return fetchAny(v.lines,'json').catch(function(){return[]})}
 var loadSeq=0;
 function commitSwitch(sg,idx){ // sg: +1 = the new ball comes from the left, -1 = from the right
   var n=ed.voices.length;if(idx==null)idx=(vi-sg+n)%n;if(idx===vi)return;
@@ -414,7 +445,7 @@ $('cEd').onclick=function(){open('往期',opts(data.editions.map(function(e,i){r
 
 (function(){var r=RATES.filter(function(x){return x[0]===(prefs.rate||1)})[0];if(r)$('rName').textContent=r[1]})();
 size();requestAnimationFrame(frame);
-fetch('data/index.json?'+Date.now()).then(function(r){return r.json()}).then(function(d){data=d;pick(0)}).catch(function(){$('sub').textContent='加载失败，请检查网络后刷新'});
+fetchAny('data/index.json?'+Date.now(),'json').then(function(d){data=d;pick(0)}).catch(function(){$('sub').textContent='加载失败，请检查网络后刷新'});
 })();
 </script>
 </body>
