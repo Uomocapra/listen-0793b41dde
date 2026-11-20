@@ -159,32 +159,43 @@ function ease(p){return p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2}
 function spring(x){return{x:x,v:0,t:x}}
 function step(s,w,z,dt){s.v+=(-2*z*w*s.v-w*w*(s.x-s.t))*dt;s.x+=s.v*dt}
 var B={fx:spring(0),fy:spring(0),rot:spring(0),open:spring(1),len:spring(1),smile:spring(0),hop:spring(0),
-  squash:spring(1),next:0,nextBlink:1.5,blinkAt:-9,smileUntil:0,nextSmile:3,nextHop:2,last:0,wk:null};
+  squash:spring(1),pop:spring(0),daze:null,nextDaze:6,next:0,nextBlink:1.5,blinkAt:-9,smileUntil:0,nextSmile:3,nextHop:2,last:0,wk:null};
 function rnd(a,b){return a+Math.random()*(b-a)}
 function bot(t,P,lv,sl){
   var dt=Math.min(0.05,t-(B.last||t));B.last=t;
   var work=!A.paused;
+  // each press of play: smile, nod twice, then start working (Mi 2026-11-20)
+  if(B.introReq){B.introReq=0;B.intro={t0:t};B.wk=null}
+  var intro=(B.intro&&work)?t-B.intro.t0:-1;if(intro>2.2||!work){B.intro=null;intro=-1}
   // --- choose targets ---
   if(t>B.next){
     if(!work){B.fx.t=rnd(-.42,.42);B.fy.t=rnd(-.38,.2);B.rot.t=rnd(-8,8);B.len.t=1;B.next=t+rnd(.9,2.8)}}
-  if(work){ // follow the reading loop
+  B.hop.t=0;
+  if(intro>=0){var nod=(intro>1&&intro<2.1)?Math.pow(Math.sin((intro-1)/0.55*Math.PI),2):0;
+    B.fx.t=0;B.rot.t=0;B.len.t=1-0.3*nod;B.fy.t=0.02+0.4*nod;B.hop.t=0.35*nod}
+  else if(work){ // follow the reading loop
     if(!B.wk){B.wk={i:0,t0:t,from:{fx:B.fx.x,fy:B.fy.x,len:B.len.x,rot:B.rot.x}}}
     var k=WK[B.wk.i],e=ease(Math.min(1,(t-B.wk.t0)/k.mv)),f0=B.wk.from;
     B.fx.t=f0.fx+(k.fx-f0.fx)*e;B.fy.t=f0.fy+(k.fy-f0.fy)*e;B.len.t=f0.len+(k.len-f0.len)*e;B.rot.t=f0.rot+(k.rot-f0.rot)*e;
     if(t-B.wk.t0>k.mv+k.hold){B.wk={i:(B.wk.i+1)%WK.length,t0:t,from:{fx:k.fx,fy:k.fy,len:k.len,rot:k.rot}}}}
   else B.wk=null;
+  // daze (idle): eyes go flat (height a bit less than width), stare at one spot 2-3 s, then the ball pops bigger and smiles
+  if(work||intro>=0){B.daze=null;B.nextDaze=t+rnd(8,13)}
+  else if(!B.daze&&t>(B.nextDaze||6)&&t>B.smileUntil+1){B.daze={t0:t,dur:rnd(2,3)};B.fx.t=rnd(-.25,.25);B.fy.t=rnd(-.1,.15);B.rot.t=0}
+  if(B.daze){B.next=t+1;B.nextBlink=t+1;B.nextHop=t+2;B.len.t=0.32;
+    if(t-B.daze.t0>B.daze.dur){B.daze=null;B.len.t=1;B.pop.v+=3.2;B.smileUntil=t+rnd(2.5,3.5);B.nextSmile=B.smileUntil+rnd(4,7);B.nextDaze=t+rnd(9,15)}}
   if(t>B.nextBlink){B.blinkAt=t;B.nextBlink=t+(work?rnd(2.5,5):rnd(1.4,3.6))}
   var bk=t-B.blinkAt;B.open.t=bk<.09?0.08:1;
-  if(!work&&t>B.nextSmile){B.smileUntil=t+rnd(1,2.2);B.nextSmile=t+rnd(3.5,7)}
-  B.smile.t=(!work&&t<B.smileUntil)?1:0;
+  if(!work&&!B.daze&&t>B.nextSmile){B.smileUntil=t+rnd(2.8,4.5);B.nextSmile=B.smileUntil+rnd(3,6)}
+  B.smile.t=intro>=0?(intro<1?1:0):((!work&&!B.daze&&t<B.smileUntil)?1:0);
   if(!work&&t>B.nextHop){B.hop.v-=rnd(2.2,3.2);B.squash.v+=rnd(2,3);B.nextHop=t+rnd(2.5,5.5)}
   // --- springs ---
   var sub=4,h=dt/sub;for(var i=0;i<sub;i++){
-    step(B.fx,work?11:6,work?.85:.5,h);step(B.fy,work?11:6,work?.85:.5,h);step(B.rot,8,.6,h);
-    step(B.open,40,.7,h);step(B.len,10,.8,h);step(B.smile,12,.7,h);step(B.hop,16,.35,h);step(B.squash,18,.3,h)}
+    step(B.fx,work?11:6,work?.85:.5,h);step(B.fy,intro>=0?22:(work?11:6),work?.85:.5,h);step(B.rot,8,.6,h);
+    step(B.open,40,.7,h);step(B.len,10,.8,h);step(B.smile,intro>=0?10:4.5,1,h);step(B.hop,16,.35,h);step(B.pop,13,.35,h);step(B.squash,18,.3,h)}
   B.squash.t=1;
   // --- geometry ---
-  var R0=Math.min(W,H-70)*0.33,R=R0*(0.94+0.18*lv)*(1-Math.min(.25,Math.abs(sl)/W*.6));
+  var R0=Math.min(W,H-70)*0.33,R=R0*(0.94+0.18*lv)*(1+0.18*B.pop.x)*(1-Math.min(.25,Math.abs(sl)/W*.6));
   var X=W/2+sl,Y=(H-70)/2+8+B.hop.x*R*0.12;
   var sq=B.squash.x,sx=1+(sq-1)*0.06,sy=1-(sq-1)*0.06;
   var fx=B.fx.x,fy=B.fy.x;
@@ -205,12 +216,17 @@ function bot(t,P,lv,sl){
     if(fore<=0.02)continue;
     cx.save();cx.translate(ex,ey);cx.rotate(B.rot.x*Math.PI/180);cx.scale(fore,1);
     var ew=R*0.095,len=R*0.5*B.len.x,open=Math.max(.06,B.open.x),sm=B.smile.x;
-    if(sm>0.5){ // smiling eyes: ∩ arcs
-      cx.lineWidth=R*0.12;cx.beginPath();cx.arc(0,R*0.06,R*0.15,Math.PI*1.1,Math.PI*1.9);cx.stroke()}
-    else{ // plain pill: same width top and bottom; blinking squashes it
-      var hh=Math.max(ew,len*open)/2,r=Math.min(ew,hh);cx.beginPath();
-      cx.arc(0,-hh+r,r,Math.PI,0);cx.lineTo(r,hh-r);cx.arc(0,hh-r,r,0,Math.PI);cx.closePath();
-      if(open<.5){cx.save();cx.scale(1,Math.max(.12,open*2));cx.fill();cx.restore()}else cx.fill()}
+    var k=sm*sm*(3-2*sm); // smooth 0..1: pill -> round dot -> ∩ smile, so the smile fades in and out gradually
+    if(k>0.02){
+      cx.globalAlpha=1;
+      if(k<0.5){var q2=k*2,hh2=(len/2)*(1-q2)+ew*q2;hh2=Math.max(ew,hh2*Math.max(.12,open));cx.lineWidth=ew*2;cx.beginPath();cx.moveTo(0,-hh2+ew);cx.lineTo(0,hh2-ew);cx.stroke()}
+      else{var q3=(k-.5)*2,ar=R*0.15,span=Math.PI*0.8*q3;cx.lineWidth=ew*2*(1-q3)+R*0.12*q3;
+        cx.beginPath();cx.arc(0,ar,ar,Math.PI*1.5-span/2-0.001,Math.PI*1.5+span/2+0.001);cx.stroke()}}
+    else{ // plain pill, same width top and bottom; when shorter than wide (blink, daze) it flattens, width unchanged
+      var hh=len*open/2;cx.beginPath();
+      if(hh>=ew){cx.arc(0,-hh+ew,ew,Math.PI,0);cx.lineTo(ew,hh-ew);cx.arc(0,hh-ew,ew,0,Math.PI);cx.closePath()}
+      else cx.ellipse(0,0,ew,Math.max(ew*0.1,hh),0,0,7);
+      cx.fill()}
     cx.restore()}
   cx.restore()}
 // a point on the front of the sphere: u in [-1.3,1.3] (0 = center) -> x offset and horizontal foreshortening
@@ -277,6 +293,7 @@ function pick(i){
 $('play').onclick=function(){if(A.paused)A.play().catch(function(){$('err').textContent='播不出来，请检查网络后再点一次'});else A.pause()};
 [].forEach.call(document.querySelectorAll('[data-skip]'),function(b){b.onclick=function(){var d=+b.getAttribute('data-skip');A.currentTime=Math.max(0,Math.min((A.duration||1e9)-0.2,A.currentTime+d));if(showLyr){curLn=-1;follow(true)}}});
 A.onplay=A.onpause=A.onended=setIcon;
+A.addEventListener('play',function(){B.introReq=1});
 A.onerror=function(){if(A.src)$('err').textContent='加载失败，请检查网络，或换个声音再试'};
 
 /* progress bar: drag to any point */
