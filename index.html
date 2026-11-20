@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="2">
+<meta name="ui-version" content="3">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -531,7 +531,17 @@ window.addEventListener('keydown',function(e){if(e.key==='Escape')tocShow(false)
 
 (function(){var r=RATES.filter(function(x){return x[0]===(prefs.rate||1)})[0];if(r)$('rName').textContent=r[1]})();
 size();requestAnimationFrame(frame);
-fetchAny('data/index.json?'+Date.now(),'json').then(function(d){data=d;pick(0)}).catch(function(){$('sub').textContent='加载失败，请检查网络后刷新'});
+/* In the app, ask every host for the list of editions and keep the newest ("built"): Netlify is updated by a separate
+   upload step that can fail, the jsDelivr mirror can lag. Waits for all hosts, or 2.5 s after the first answer. */
+function fetchIndex(){
+  if(REMOTE.length<2)return fetchAny('data/index.json?'+Date.now(),'json');
+  return new Promise(function(res,rej){var best=null,left=REMOTE.length,over=false;
+    function fin(){if(over)return;over=true;best?res(best):rej(new Error('no index'))}
+    REMOTE.forEach(function(b){var c=window.AbortController?new AbortController():null;setTimeout(function(){if(c)c.abort()},9000);
+      fetch(b+'data/index.json?'+Date.now(),{cache:'no-store',signal:c?c.signal:undefined}).then(function(r){return r.ok?r.json():null})
+        .then(function(d){if(d&&d.editions&&d.editions.length&&(!best||String(d.built)>String(best.built))){if(!best)setTimeout(fin,2500);best=d}})
+        .catch(function(){}).then(function(){if(--left===0)fin()})})})}
+fetchIndex().then(function(d){data=d;pick(0)}).catch(function(){$('sub').textContent='加载失败，请检查网络后刷新'});
 })();
 </script>
 </body>
