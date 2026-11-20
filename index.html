@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="5">
+<meta name="ui-version" content="6">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -535,6 +535,13 @@ TB.onclick=function(){tocShow(!tocOn)};
 $('tocList').onclick=function(e){var b=e.target.closest('.titem');if(!b)return;var x=tocItems()[+b.getAttribute('data-k')];tocShow(false);if(x)playLine(x.i)};
 window.addEventListener('resize',function(){if(tocOn)placeToc()});
 window.addEventListener('keydown',function(e){if(e.key==='Escape')tocShow(false)});
+/* the phone's back key (the app asks first): close what is open, one thing at a time; true = handled.
+   Nothing open: the app goes to the background and keeps playing. */
+window.onAppBack=function(){
+  if($('sheet').classList.contains('on')){close();return true}
+  if(tocOn){tocShow(false);return true}
+  if(showLyr){toggleLyr(false);return true}
+  return false};
 
 (function(){var r=RATES.filter(function(x){return x[0]===(prefs.rate||1)})[0];if(r)$('rName').textContent=r[1]})();
 size();requestAnimationFrame(frame);
