@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>听新闻</title>
+<style>
+:root{--bg:#f5f5f7;--card:#fff;--fg:#1d1d1f;--mute:#6e6e73;--acc:#0071e3;--line:#e5e5ea}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--fg:#f5f5f7;--mute:#a1a1a6;--acc:#2997ff;--line:#38383a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:20px/1.6 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:640px;margin:0 auto;padding:20px 16px calc(40px + env(safe-area-inset-bottom))}
+h1{font-size:30px;margin:8px 0 2px}
+.sub{color:var(--mute);font-size:16px;margin:0 0 18px}
+.card{background:var(--card);border-radius:20px;padding:18px;margin:0 0 16px}
+h2{font-size:18px;color:var(--mute);font-weight:600;margin:0 0 12px}
+.eds{display:flex;gap:10px;flex-wrap:wrap}
+.eds button{flex:1 1 auto;min-width:30%;font:inherit;font-size:18px;padding:14px 10px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--fg)}
+.eds button[aria-pressed=true]{border-color:var(--acc);background:var(--acc);color:#fff}
+.voices label{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--line);font-size:20px}
+.voices label:last-child{border-bottom:0}
+.voices input{width:26px;height:26px;accent-color:var(--acc);flex:none}
+#play{width:100%;font:inherit;font-size:26px;font-weight:600;padding:22px;border:0;border-radius:20px;background:var(--acc);color:#fff;margin:0 0 12px}
+.row{display:flex;gap:10px}
+.row button{flex:1;font:inherit;font-size:19px;padding:14px 6px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--fg)}
+.row button[aria-pressed=true]{border-color:var(--acc);color:var(--acc);font-weight:600}
+input[type=range]{width:100%;height:36px;accent-color:var(--acc)}
+.time{display:flex;justify-content:space-between;color:var(--mute);font-size:16px;margin-top:-4px}
+.hint{color:var(--mute);font-size:15px;margin:10px 2px 0}
+details{margin:0}
+summary{font-size:18px;color:var(--acc);padding:6px 0}
+.text p{margin:0 0 .9em;font-size:19px}
+.text h3{font-size:21px;margin:1.2em 0 .3em}
+.err{color:#d70015;font-size:17px;margin:8px 2px 0;min-height:1.2em}
+</style>
+</head>
+<body>
+<main>
+<h1 id="title">听新闻</h1>
+<p class="sub" id="sub">加载中…</p>
+
+<div class="card">
+  <h2>哪一期</h2>
+  <div class="eds" id="eds"></div>
+</div>
+
+<div class="card">
+  <button id="play" type="button">▶ 播放</button>
+  <input id="seek" type="range" min="0" max="1000" value="0" aria-label="进度">
+  <div class="time"><span id="cur">0:00</span><span id="dur">0:00</span></div>
+  <div class="row" style="margin-top:12px">
+    <button type="button" id="back">倒退 15 秒</button>
+    <button type="button" id="fwd">快进 15 秒</button>
+  </div>
+  <div class="row" style="margin-top:10px" id="rates"></div>
+  <div class="err" id="err"></div>
+  <p class="hint">关掉屏幕后会继续播放。如果自己停了，开着屏幕点一下播放。</p>
+</div>
+
+<div class="card">
+  <h2>选声音</h2>
+  <div class="voices" id="voices"></div>
+  <p class="hint">换声音时会从头开始。</p>
+</div>
+
+<div class="card">
+  <details>
+    <summary>看文字</summary>
+    <div class="text" id="text"></div>
+  </details>
+</div>
+</main>
+
+<audio id="a" preload="none"></audio>
+<script>
+(function(){
+var A=document.getElementById('a'),$=function(i){return document.getElementById(i)};
+var data=null,ed=null,voice=null;
+var KEY='fn.prefs';
+function load(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return{}}}
+function save(o){try{localStorage.setItem(KEY,JSON.stringify(o))}catch(e){}}
+var prefs=load();
+function fmt(s){if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/60)+':'+('0'+s%60).slice(-2)}
+function esc(s){return s.replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+
+function renderText(t){
+  var h='';t.split('\n').forEach(function(l){l=l.trim();if(!l)return;
+    if(/^(先听要点|下面是详细内容)/.test(l))return;
+    h+=(/[。]$/.test(l)&&l.length<30&&!/，/.test(l)?'<h3>':'<p>')+esc(l)+(/[。]$/.test(l)&&l.length<30&&!/，/.test(l)?'</h3>':'</p>')});
+  $('text').innerHTML=h}
+
+function pick(i){
+  ed=data.editions[i];prefs.ed=ed.stem;save(prefs);
+  $('title').textContent=ed.title;$('sub').textContent=ed.sub;
+  [].forEach.call($('eds').children,function(b,j){b.setAttribute('aria-pressed',j===i)});
+  renderVoices();renderText(ed.text||'');setSrc(false)}
+
+function renderVoices(){
+  var box=$('voices');box.innerHTML='';
+  var ids=ed.voices.map(function(v){return v.id});
+  if(!voice||ids.indexOf(voice)<0)voice=ids.indexOf(prefs.voice)>=0?prefs.voice:ids[0];
+  ed.voices.forEach(function(v){
+    var l=document.createElement('label'),r=document.createElement('input');
+    r.type='radio';r.name='v';r.value=v.id;r.checked=v.id===voice;
+    r.onchange=function(){voice=v.id;prefs.voice=v.id;save(prefs);setSrc(!A.paused)};
+    l.appendChild(r);l.appendChild(document.createTextNode(v.name));box.appendChild(l)})}
+
+function setSrc(autoplay){
+  var v=ed.voices.filter(function(x){return x.id===voice})[0];if(!v)return;
+  $('err').textContent='';
+  A.src=v.url;A.load();A.playbackRate=prefs.rate||1;
+  if(autoplay)A.play().catch(function(){});
+  media()}
+
+function media(){
+  if(!('mediaSession' in navigator))return;
+  try{navigator.mediaSession.metadata=new MediaMetadata({title:ed.title,artist:'听新闻',album:ed.sub});
+  navigator.mediaSession.setActionHandler('play',function(){A.play()});
+  navigator.mediaSession.setActionHandler('pause',function(){A.pause()});
+  navigator.mediaSession.setActionHandler('seekbackward',function(){A.currentTime=Math.max(0,A.currentTime-15)});
+  navigator.mediaSession.setActionHandler('seekforward',function(){A.currentTime=Math.min(A.duration||1e9,A.currentTime+15)})}catch(e){}}
+
+$('play').onclick=function(){if(A.paused)A.play().catch(function(){$('err').textContent='播不出来，请检查网络后再点一次'});else A.pause()};
+$('back').onclick=function(){A.currentTime=Math.max(0,A.currentTime-15)};
+$('fwd').onclick=function(){A.currentTime=Math.min(A.duration||1e9,A.currentTime+15)};
+A.onplay=function(){$('play').textContent='⏸ 暂停'};
+A.onpause=function(){$('play').textContent='▶ 播放'};
+A.onended=function(){$('play').textContent='▶ 重新播放'};
+A.onerror=function(){$('err').textContent='加载失败，请检查网络，或换一个声音再试'};
+A.ontimeupdate=function(){if(A.duration){$('seek').value=Math.round(A.currentTime/A.duration*1000)}$('cur').textContent=fmt(A.currentTime)};
+A.onloadedmetadata=function(){$('dur').textContent=fmt(A.duration)};
+$('seek').oninput=function(){if(A.duration)A.currentTime=A.duration*$('seek').value/1000};
+
+[[0.85,'慢一点'],[1,'正常'],[1.2,'快一点']].forEach(function(r){
+  var b=document.createElement('button');b.type='button';b.textContent=r[1];
+  b.setAttribute('aria-pressed',(prefs.rate||1)===r[0]);
+  b.onclick=function(){prefs.rate=r[0];save(prefs);A.playbackRate=r[0];[].forEach.call($('rates').children,function(x){x.setAttribute('aria-pressed',x===b)})};
+  $('rates').appendChild(b)});
+
+fetch('data/index.json?'+Date.now()).then(function(r){return r.json()}).then(function(d){
+  data=d;
+  d.editions.forEach(function(e,i){var b=document.createElement('button');b.type='button';b.textContent=e.label;b.onclick=function(){A.pause();pick(i)};$('eds').appendChild(b)});
+  pick(0)
+}).catch(function(){$('sub').textContent='加载失败，请检查网络后刷新页面'});
+})();
+</script>
+</body>
+</html>
