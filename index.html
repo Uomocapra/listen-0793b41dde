@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="6">
+<meta name="ui-version" content="7">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -151,7 +151,10 @@ console.log('listen-ui '+(document.querySelector('meta[name=ui-version]')||{}).c
 /* Inside the Android app the page is a local file and the app plays the audio (screen off, lock screen).
    NativePlayer is the app's bridge; data and audio then come from these hosts, tried in order. */
 var NATIVE=window.NativePlayer||null;
-var REMOTE=NATIVE?['https://zippy-cannoli-b04b24.netlify.app/','https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/']:[''];
+/* On the website the page's own host comes first. Netlify holds only the newest edition, so the past editions come
+   from the jsDelivr mirror (fetchIndex merges the lists). */
+var JSD=['https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/'];
+var REMOTE=NATIVE?['https://zippy-cannoli-b04b24.netlify.app/'].concat(JSD):[''].concat(JSD);
 function fetchAny(path,kind){var i=0;return new Promise(function(res,rej){(function go(){if(i>=REMOTE.length)return rej(new Error('all failed'));
   fetch(REMOTE[i++]+path,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(r.status);return kind==='json'?r.json():r.text()}).then(res).catch(go)})()})}
 function nativeAudio(){ // looks like an <audio> element to the rest of the page, but drives the app's player
