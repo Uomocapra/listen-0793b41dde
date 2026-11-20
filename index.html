@@ -148,39 +148,46 @@ function frame(now){
 /* ---------- Grok-Bot-style avatar ----------
    One flat colored ball, two solid white pill eyes, no mouth (Mi 2026-11-20, after studying x.ai's avatar motion demo).
    Ball size follows the voice. Not playing: lively - eyes glance around, blink, smile with ∩ eyes, little hops.
-   Playing = "working": tilted pill eyes that hop between spots, squints, and now and then the face spins around
-   the ball with rainbow trails. */
+   Playing = "working" (Mi 2026-11-20): reads left to right, suddenly drops the head and looks down, slowly turns
+   right to left with the head down, then suddenly looks up to the upper right at 45 degrees, and repeats.
+   Eyes are plain pills (same width top and bottom); no spin, no colored trails. */
+// working loop keyframes: face position fx/fy (fy>0 = looking down), eye length (shorter = head lowered), tilt, move time, hold
+var WK=[{fx:-.32,fy:.06,len:1,rot:0,mv:1.0,hold:.5},{fx:.32,fy:.06,len:1,rot:0,mv:2.8,hold:.5},
+  {fx:.3,fy:.36,len:.74,rot:0,mv:.3,hold:.8},{fx:-.32,fy:.36,len:.74,rot:0,mv:3.2,hold:.8},
+  {fx:.34,fy:-.34,len:1,rot:6,mv:.35,hold:1.4}];
+function ease(p){return p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2}
 function spring(x){return{x:x,v:0,t:x}}
 function step(s,w,z,dt){s.v+=(-2*z*w*s.v-w*w*(s.x-s.t))*dt;s.x+=s.v*dt}
 var B={fx:spring(0),fy:spring(0),rot:spring(0),open:spring(1),len:spring(1),smile:spring(0),hop:spring(0),
-  squash:spring(1),next:0,nextBlink:1.5,blinkAt:-9,smileUntil:0,nextSmile:3,nextHop:2,spin:null,nextSpin:4,last:0,trail:[]};
+  squash:spring(1),next:0,nextBlink:1.5,blinkAt:-9,smileUntil:0,nextSmile:3,nextHop:2,last:0,wk:null};
 function rnd(a,b){return a+Math.random()*(b-a)}
 function bot(t,P,lv,sl){
   var dt=Math.min(0.05,t-(B.last||t));B.last=t;
   var work=!A.paused;
   // --- choose targets ---
   if(t>B.next){
-    if(work){var side=Math.random()<.5?-1:1;B.fx.t=side*rnd(.05,.32);B.fy.t=rnd(.08,.3);B.rot.t=-side*rnd(10,24);
-      B.len.t=Math.random()<.3?rnd(.55,.75):rnd(.9,1.05);B.next=t+rnd(.5,1.3)}
-    else{B.fx.t=rnd(-.42,.42);B.fy.t=rnd(-.38,.2);B.rot.t=rnd(-8,8);B.len.t=1;B.next=t+rnd(.6,2.2)}}
+    if(!work){B.fx.t=rnd(-.42,.42);B.fy.t=rnd(-.38,.2);B.rot.t=rnd(-8,8);B.len.t=1;B.next=t+rnd(.9,2.8)}}
+  if(work){ // follow the reading loop
+    if(!B.wk){B.wk={i:0,t0:t,from:{fx:B.fx.x,fy:B.fy.x,len:B.len.x,rot:B.rot.x}}}
+    var k=WK[B.wk.i],e=ease(Math.min(1,(t-B.wk.t0)/k.mv)),f0=B.wk.from;
+    B.fx.t=f0.fx+(k.fx-f0.fx)*e;B.fy.t=f0.fy+(k.fy-f0.fy)*e;B.len.t=f0.len+(k.len-f0.len)*e;B.rot.t=f0.rot+(k.rot-f0.rot)*e;
+    if(t-B.wk.t0>k.mv+k.hold){B.wk={i:(B.wk.i+1)%WK.length,t0:t,from:{fx:k.fx,fy:k.fy,len:k.len,rot:k.rot}}}}
+  else B.wk=null;
   if(t>B.nextBlink){B.blinkAt=t;B.nextBlink=t+(work?rnd(2.5,5):rnd(1.4,3.6))}
   var bk=t-B.blinkAt;B.open.t=bk<.09?0.08:1;
   if(!work&&t>B.nextSmile){B.smileUntil=t+rnd(1,2.2);B.nextSmile=t+rnd(3.5,7)}
   B.smile.t=(!work&&t<B.smileUntil)?1:0;
   if(!work&&t>B.nextHop){B.hop.v-=rnd(2.2,3.2);B.squash.v+=rnd(2,3);B.nextHop=t+rnd(2.5,5.5)}
-  if(work&&!B.spin&&t>B.nextSpin){B.spin={t0:t,dir:Math.random()<.5?-1:1};B.nextSpin=t+rnd(4,8)}
-  if(!work){B.spin=null;B.nextSpin=t+rnd(1.5,3)}
   // --- springs ---
   var sub=4,h=dt/sub;for(var i=0;i<sub;i++){
-    step(B.fx,work?14:9,work?.6:.45,h);step(B.fy,work?14:9,work?.6:.45,h);step(B.rot,12,.5,h);
-    step(B.open,40,.7,h);step(B.len,14,.55,h);step(B.smile,12,.7,h);step(B.hop,16,.35,h);step(B.squash,18,.3,h)}
+    step(B.fx,work?11:6,work?.85:.5,h);step(B.fy,work?11:6,work?.85:.5,h);step(B.rot,8,.6,h);
+    step(B.open,40,.7,h);step(B.len,10,.8,h);step(B.smile,12,.7,h);step(B.hop,16,.35,h);step(B.squash,18,.3,h)}
   B.squash.t=1;
   // --- geometry ---
   var R0=Math.min(W,H-70)*0.33,R=R0*(0.94+0.18*lv)*(1-Math.min(.25,Math.abs(sl)/W*.6));
   var X=W/2+sl,Y=(H-70)/2+8+B.hop.x*R*0.12;
   var sq=B.squash.x,sx=1+(sq-1)*0.06,sy=1-(sq-1)*0.06;
   var fx=B.fx.x,fy=B.fy.x;
-  if(B.spin){var p=(t-B.spin.t0)/0.95;if(p>=1){B.spin=null}else{var e=p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;fx=fx+B.spin.dir*e*2.6;fx=((fx+1.3)%2.6+2.6)%2.6-1.3}}
   // glow
   var g=cx.createRadialGradient(X,Y,R*0.7,X,Y,R*1.5);g.addColorStop(0,rgb(P.g,0.16+0.22*lv));g.addColorStop(1,rgb(P.g,0));
   cx.fillStyle=g;cx.beginPath();cx.arc(X,Y,R*1.55,0,7);cx.fill();
@@ -196,16 +203,14 @@ function bot(t,P,lv,sl){
   for(var s=-1;s<=1;s+=2){
     var u=fx+s*0.235, q=pos(u,R), ex=q.x, ey=q.y+fy*R*0.55-R*0.06, fore=q.f;
     if(fore<=0.02)continue;
-    cx.save();cx.translate(ex,ey);cx.rotate((B.rot.x+(B.spin?B.spin.dir*12:0))*Math.PI/180);cx.scale(fore,1);
-    var wTop=R*0.11,wBot=R*0.068,len=R*0.56*B.len.x,open=Math.max(.06,B.open.x),sm=B.smile.x;
+    cx.save();cx.translate(ex,ey);cx.rotate(B.rot.x*Math.PI/180);cx.scale(fore,1);
+    var ew=R*0.095,len=R*0.5*B.len.x,open=Math.max(.06,B.open.x),sm=B.smile.x;
     if(sm>0.5){ // smiling eyes: ∩ arcs
       cx.lineWidth=R*0.12;cx.beginPath();cx.arc(0,R*0.06,R*0.15,Math.PI*1.1,Math.PI*1.9);cx.stroke()}
-    else{ // tapered pill: wider on top
-      var hh=len*open/2;cx.beginPath();
-      cx.arc(0,-hh+wTop*Math.min(1,open*1.5),wTop*Math.min(1,open*1.6),Math.PI,0);
-      cx.lineTo(wBot*Math.min(1,open*1.6),hh-wBot*Math.min(1,open*1.5));
-      cx.arc(0,hh-wBot*Math.min(1,open*1.5),wBot*Math.min(1,open*1.6),0,Math.PI);
-      cx.closePath();cx.fill()}
+    else{ // plain pill: same width top and bottom; blinking squashes it
+      var hh=Math.max(ew,len*open)/2,r=Math.min(ew,hh);cx.beginPath();
+      cx.arc(0,-hh+r,r,Math.PI,0);cx.lineTo(r,hh-r);cx.arc(0,hh-r,r,0,Math.PI);cx.closePath();
+      if(open<.5){cx.save();cx.scale(1,Math.max(.12,open*2));cx.fill();cx.restore()}else cx.fill()}
     cx.restore()}
   cx.restore()}
 // a point on the front of the sphere: u in [-1.3,1.3] (0 = center) -> x offset and horizontal foreshortening
