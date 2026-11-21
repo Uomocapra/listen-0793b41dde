@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="9">
+<meta name="ui-version" content="10">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -554,10 +554,12 @@ size();requestAnimationFrame(frame);
 function fetchIndex(){
   if(REMOTE.length<2)return fetchAny('data/index.json?'+Date.now(),'json');
   return new Promise(function(res,rej){var best=null,all=[],left=REMOTE.length,over=false;
-    /* Netlify holds only the newest edition, jsDelivr the last week: keep the newest list and add the past
-       editions the others know, newest first (their audio is on jsDelivr) */
+    /* Netlify holds only the newest edition, jsDelivr the recent ones: keep the newest list and add the past
+       editions the others know, newest first (their audio is on jsDelivr). The newest list's "stems" says what
+       still exists: an edition dropped from the mirror but named by a stale cached list is left out. */
     function fin(){if(over)return;over=true;if(!best)return rej(new Error('no index'));
-      var seen={},eds=[];all.forEach(function(d){d.editions.forEach(function(e){if(!seen[e.stem]){seen[e.stem]=1;eds.push(e)}})});
+      var ok=best.stems?best.stems.join():null,seen={},eds=[];all.forEach(function(d){d.editions.forEach(function(e){
+        if(!seen[e.stem]&&(!ok||ok.indexOf(e.stem)>=0)){seen[e.stem]=1;eds.push(e)}})});
       eds.sort(function(a,b){return a.stem<b.stem?1:a.stem>b.stem?-1:0});best.editions=eds.slice(0,KEEP);res(best)}
     REMOTE.forEach(function(b){var c=window.AbortController?new AbortController():null;setTimeout(function(){if(c)c.abort()},9000);
       fetch(b+'data/index.json?'+Date.now(),{cache:'no-store',signal:c?c.signal:undefined}).then(function(r){return r.ok?r.json():null})
