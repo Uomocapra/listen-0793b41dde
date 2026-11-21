@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="12">
+<meta name="ui-version" content="13">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -552,31 +552,40 @@ window.onAppBack=function(){
 
 (function(){var r=RATES.filter(function(x){return x[0]===(prefs.rate||1)})[0];if(r)$('rName').textContent=r[1]})();
 size();requestAnimationFrame(frame);
+/* jsDelivr's @main can stay stale for 12 h even after a purge (2026-11-21), so publish_edition.py also tags every
+   edition (1.YYYYMMDD.HHMMnn). jsDelivr's API names the newest tag within ~10 minutes, and files fetched @tag are fresh
+   at once. Those hosts are asked too; if the API doesn't answer in 4 s, only the fixed hosts are used. */
+var TAGAPI='https://data.jsdelivr.com/v1/packages/gh/Uomocapra/listen-0793b41dde/resolved?specifier=latest';
+function hosts(){return new Promise(function(res){var done=false,c=window.AbortController?new AbortController():null,
+  t=setTimeout(function(){if(c)c.abort();fin(null)},4000);
+  function fin(v){if(done)return;done=true;clearTimeout(t);if(v)console.log('listen-tag '+v);
+    res(v?['https://testingcf.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@'+v+'/','https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@'+v+'/'].concat(REMOTE):REMOTE)}
+  fetch(TAGAPI+'&t='+Date.now(),{cache:'no-store',signal:c?c.signal:undefined}).then(function(r){return r.ok?r.json():null})
+    .then(function(d){fin(d&&d.version)}).catch(function(){fin(null)})})}
 /* In the app, ask every host for the list of editions and keep the newest ("built"): some jsDelivr nodes lag. Waits for all hosts, or 2.5 s after the first answer. */
-function fetchIndex(){
-  if(REMOTE.length<2)return fetchAny('data/index.json?'+Date.now(),'json');
-  return new Promise(function(res,rej){var best=null,all=[],left=REMOTE.length,over=false;
+function fetchIndex(){return hosts().then(function(H){
+  return new Promise(function(res,rej){var best=null,all=[],left=H.length,over=false;
     /* keep the newest list and add the past editions the others know, newest first. The newest list's "stems" says what
        still exists: an edition dropped from the mirror but named by a stale cached list is left out. */
     function fin(){if(over)return;over=true;if(!best)return rej(new Error('no index'));
       var ok=best.stems?best.stems.join():null,seen={},eds=[];all.forEach(function(d){d.editions.forEach(function(e){
         if(!seen[e.stem]&&(!ok||ok.indexOf(e.stem)>=0)){seen[e.stem]=1;eds.push(e)}})});
       eds.sort(function(a,b){return a.stem<b.stem?1:a.stem>b.stem?-1:0});best.editions=eds.slice(0,KEEP);res(best)}
-    REMOTE.forEach(function(b){var c=window.AbortController?new AbortController():null;setTimeout(function(){if(c)c.abort()},9000);
+    H.forEach(function(b){var c=window.AbortController?new AbortController():null;setTimeout(function(){if(c)c.abort()},9000);
       fetch(b+'data/index.json?'+Date.now(),{cache:'no-store',signal:c?c.signal:undefined}).then(function(r){return r.ok?r.json():null})
         .then(function(d){if(!d||!d.editions||!d.editions.length)return;all.push(d);
           if(!best||String(d.built)>String(best.built)){if(!best)setTimeout(fin,2500);best=d}})
-        .catch(function(){}).then(function(){if(--left===0)fin()})})})}
+        .catch(function(){}).then(function(){if(--left===0)fin()})})})})}
 /* The app stays open in the background (back = keep running), so new editions must show up without closing it
    (Mi 2026-11-21): whenever the page comes back into view, and every 3 minutes while it is on screen, read the tiny
    data/latest.json (list of edition names) from every host; only when it differs, load the full list.
    A new newest edition is switched to at once if nothing is playing; while playing, only the 往期 list grows. */
 var lastIdx=Date.now(),idxBusy=false;
 function stemsOf(d){return d.editions.map(function(e){return e.stem}).join()}
-function latest(){return new Promise(function(res){var best=null,left=REMOTE.length;
-  REMOTE.forEach(function(b){fetch(b+'data/latest.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null})
+function latest(){return hosts().then(function(H){return new Promise(function(res){var best=null,left=H.length;
+  H.forEach(function(b){fetch(b+'data/latest.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null})
     .then(function(d){if(d&&d.stems&&(!best||String(d.built)>String(best.built)))best=d}).catch(function(){})
-    .then(function(){if(--left===0)res(best)})})})}
+    .then(function(){if(--left===0)res(best)})})})})}
 function refreshIndex(force){
   if(!data||idxBusy||(!force&&(document.hidden||Date.now()-lastIdx<60e3)))return;lastIdx=Date.now();idxBusy=true;
   console.log('listen-check '+(force?'return':'timer')); // shows in the app's logcat (emulator test)
