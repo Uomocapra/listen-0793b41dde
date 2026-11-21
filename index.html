@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="11">
+<meta name="ui-version" content="12">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -156,7 +156,7 @@ var NATIVE=window.NativePlayer||null;
    asks all of them and keeps the newest). On the website the page's own host comes first. */
 var JSD=['https://testingcf.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/'];
 var KEEP=21; // past editions offered: one week (build_site.py --keep)
-var REMOTE=NATIVE?JSD:[''].concat(JSD);
+var REMOTE=NATIVE?['https://zippy-cannoli-b04b24.netlify.app/'].concat(JSD):[''].concat(JSD); // Netlify back 2026-11-21: jsDelivr @main can stay stale for 12 h even after a purge
 function fetchAny(path,kind){var i=0;return new Promise(function(res,rej){(function go(){if(i>=REMOTE.length)return rej(new Error('all failed'));
   fetch(REMOTE[i++]+path,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(r.status);return kind==='json'?r.json():r.text()}).then(res).catch(go)})()})}
 function nativeAudio(){ // looks like an <audio> element to the rest of the page, but drives the app's player
@@ -407,9 +407,9 @@ function setIcon(){$('ico').innerHTML=A.paused?'<path d="M8 5.5v13l11-6.5z"/>':'
    The list names the commit its files are in (data.rev, written by publish_edition.py): fetching by commit, gcore
    can't hand out a stale @main that doesn't have the new edition yet. Older lists without rev use @main.
    On the website (not the app) the page's own host ('') is tried too. */
-var MIRRORS=['https://gcore.jsdelivr.net','https://testingcf.jsdelivr.net',NATIVE?null:'','https://fastly.jsdelivr.net'].filter(function(h){return h!==null});
+var MIRRORS=['https://gcore.jsdelivr.net','https://testingcf.jsdelivr.net',NATIVE?'https://zippy-cannoli-b04b24.netlify.app':'','https://fastly.jsdelivr.net'];
 var srcIdx=0,srcTimer=0,lastErr='',resumeAt=0,allFailed=false;
-function srcFor(v,i){var h=MIRRORS[i];return h===''?v.url:h+'/gh/Uomocapra/listen-0793b41dde@'+((data&&data.rev)||'main')+'/'+v.url}
+function srcFor(v,i){var h=MIRRORS[i];return h===''?v.url:/netlify/.test(h)?h+'/'+v.url:h+'/gh/Uomocapra/listen-0793b41dde@'+((data&&data.rev)||'main')+'/'+v.url}
 /* keepT: where to continue in this same recording (0 = from the start). It is carried along while sources fail one
    after another, so a later source still starts at the right place. A new edition or voice passes 0. */
 function trySource(i,autoplay,keepT){
