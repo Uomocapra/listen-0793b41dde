@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="10">
+<meta name="ui-version" content="11">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -151,11 +151,12 @@ console.log('listen-ui '+(document.querySelector('meta[name=ui-version]')||{}).c
 /* Inside the Android app the page is a local file and the app plays the audio (screen off, lock screen).
    NativePlayer is the app's bridge; data and audio then come from these hosts, tried in order. */
 var NATIVE=window.NativePlayer||null;
-/* On the website the page's own host comes first. Netlify holds only the newest edition, so the past editions come
-   from the jsDelivr mirror (fetchIndex merges the lists). */
-var JSD=['https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/'];
+/* Everything comes from the jsDelivr mirror of the GitHub repo (Netlify dropped 2026-11-21: its free credits cover
+   only 20 uploads a month). testingcf has the new list within minutes of a purge; gcore can lag hours (fetchIndex
+   asks all of them and keeps the newest). On the website the page's own host comes first. */
+var JSD=['https://testingcf.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/'];
 var KEEP=21; // past editions offered: one week (build_site.py --keep)
-var REMOTE=NATIVE?['https://zippy-cannoli-b04b24.netlify.app/'].concat(JSD):[''].concat(JSD);
+var REMOTE=NATIVE?JSD:[''].concat(JSD);
 function fetchAny(path,kind){var i=0;return new Promise(function(res,rej){(function go(){if(i>=REMOTE.length)return rej(new Error('all failed'));
   fetch(REMOTE[i++]+path,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(r.status);return kind==='json'?r.json():r.text()}).then(res).catch(go)})()})}
 function nativeAudio(){ // looks like an <audio> element to the rest of the page, but drives the app's player
@@ -402,11 +403,13 @@ function V(){return ed.voices[vi]}
 function setIcon(){$('ico').innerHTML=A.paused?'<path d="M8 5.5v13l11-6.5z"/>':'<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>';$('play').setAttribute('aria-label',A.paused?'播放':'暂停')}
 /* audio sources, tried in order. On Mom's phone in China (2026-11-20) the Netlify mp3 started only after a long wait;
    Globalping probes in China: jsDelivr gcore 1-3 s everywhere, Netlify 0.6-15 s depending on the network.
-   So gcore first; a source that doesn't start or stalls for a few seconds is swapped for the next one. */
-var GH='/gh/Uomocapra/listen-0793b41dde@main/';
-var MIRRORS=['https://gcore.jsdelivr.net'+GH,'https://testingcf.jsdelivr.net'+GH,NATIVE?'https://zippy-cannoli-b04b24.netlify.app/':'','https://fastly.jsdelivr.net'+GH];
+   So gcore first; a source that doesn't start or stalls for a few seconds is swapped for the next one.
+   The list names the commit its files are in (data.rev, written by publish_edition.py): fetching by commit, gcore
+   can't hand out a stale @main that doesn't have the new edition yet. Older lists without rev use @main.
+   On the website (not the app) the page's own host ('') is tried too. */
+var MIRRORS=['https://gcore.jsdelivr.net','https://testingcf.jsdelivr.net',NATIVE?null:'','https://fastly.jsdelivr.net'].filter(function(h){return h!==null});
 var srcIdx=0,srcTimer=0,lastErr='',resumeAt=0,allFailed=false;
-function srcFor(v,i){return MIRRORS[i]+v.url}
+function srcFor(v,i){var h=MIRRORS[i];return h===''?v.url:h+'/gh/Uomocapra/listen-0793b41dde@'+((data&&data.rev)||'main')+'/'+v.url}
 /* keepT: where to continue in this same recording (0 = from the start). It is carried along while sources fail one
    after another, so a later source still starts at the right place. A new edition or voice passes 0. */
 function trySource(i,autoplay,keepT){
@@ -549,13 +552,11 @@ window.onAppBack=function(){
 
 (function(){var r=RATES.filter(function(x){return x[0]===(prefs.rate||1)})[0];if(r)$('rName').textContent=r[1]})();
 size();requestAnimationFrame(frame);
-/* In the app, ask every host for the list of editions and keep the newest ("built"): Netlify is updated by a separate
-   upload step that can fail, the jsDelivr mirror can lag. Waits for all hosts, or 2.5 s after the first answer. */
+/* In the app, ask every host for the list of editions and keep the newest ("built"): some jsDelivr nodes lag. Waits for all hosts, or 2.5 s after the first answer. */
 function fetchIndex(){
   if(REMOTE.length<2)return fetchAny('data/index.json?'+Date.now(),'json');
   return new Promise(function(res,rej){var best=null,all=[],left=REMOTE.length,over=false;
-    /* Netlify holds only the newest edition, jsDelivr the recent ones: keep the newest list and add the past
-       editions the others know, newest first (their audio is on jsDelivr). The newest list's "stems" says what
+    /* keep the newest list and add the past editions the others know, newest first. The newest list's "stems" says what
        still exists: an edition dropped from the mirror but named by a stale cached list is left out. */
     function fin(){if(over)return;over=true;if(!best)return rej(new Error('no index'));
       var ok=best.stems?best.stems.join():null,seen={},eds=[];all.forEach(function(d){d.editions.forEach(function(e){
