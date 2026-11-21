@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="7">
+<meta name="ui-version" content="8">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -154,6 +154,7 @@ var NATIVE=window.NativePlayer||null;
 /* On the website the page's own host comes first. Netlify holds only the newest edition, so the past editions come
    from the jsDelivr mirror (fetchIndex merges the lists). */
 var JSD=['https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/'];
+var KEEP=21; // past editions offered: one week (build_site.py --keep)
 var REMOTE=NATIVE?['https://zippy-cannoli-b04b24.netlify.app/'].concat(JSD):[''].concat(JSD);
 function fetchAny(path,kind){var i=0;return new Promise(function(res,rej){(function go(){if(i>=REMOTE.length)return rej(new Error('all failed'));
   fetch(REMOTE[i++]+path,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(r.status);return kind==='json'?r.json():r.text()}).then(res).catch(go)})()})}
@@ -553,25 +554,39 @@ size();requestAnimationFrame(frame);
 function fetchIndex(){
   if(REMOTE.length<2)return fetchAny('data/index.json?'+Date.now(),'json');
   return new Promise(function(res,rej){var best=null,all=[],left=REMOTE.length,over=false;
-    /* Netlify holds only the newest edition, jsDelivr the last three: keep the newest list and add the past
-       editions the others know, newest first, three at most (their audio is on jsDelivr) */
+    /* Netlify holds only the newest edition, jsDelivr the last week: keep the newest list and add the past
+       editions the others know, newest first (their audio is on jsDelivr) */
     function fin(){if(over)return;over=true;if(!best)return rej(new Error('no index'));
       var seen={},eds=[];all.forEach(function(d){d.editions.forEach(function(e){if(!seen[e.stem]){seen[e.stem]=1;eds.push(e)}})});
-      eds.sort(function(a,b){return a.stem<b.stem?1:a.stem>b.stem?-1:0});best.editions=eds.slice(0,3);res(best)}
+      eds.sort(function(a,b){return a.stem<b.stem?1:a.stem>b.stem?-1:0});best.editions=eds.slice(0,KEEP);res(best)}
     REMOTE.forEach(function(b){var c=window.AbortController?new AbortController():null;setTimeout(function(){if(c)c.abort()},9000);
       fetch(b+'data/index.json?'+Date.now(),{cache:'no-store',signal:c?c.signal:undefined}).then(function(r){return r.ok?r.json():null})
         .then(function(d){if(!d||!d.editions||!d.editions.length)return;all.push(d);
           if(!best||String(d.built)>String(best.built)){if(!best)setTimeout(fin,2500);best=d}})
         .catch(function(){}).then(function(){if(--left===0)fin()})})})}
-/* Mom leaves the app in the background (back = keep running), so a new edition must also show up when she comes
-   back: on return, and every few minutes, look for a newer list; switch only when nothing is playing. */
-var lastIdx=Date.now();
-function refreshIndex(){
-  if(!data||!A.paused||Date.now()-lastIdx<10*60e3)return;lastIdx=Date.now();
-  fetchIndex().then(function(d){if(!A.paused||!d.editions||!d.editions.length)return;
-    if(d.editions[0].stem!==data.editions[0].stem&&String(d.built)>String(data.built)){data=d;pick(0)}}).catch(function(){})}
-document.addEventListener('visibilitychange',function(){if(!document.hidden)refreshIndex()});
-setInterval(refreshIndex,5*60e3);
+/* The app stays open in the background (back = keep running), so new editions must show up without closing it
+   (Mi 2026-11-21): whenever the page comes back into view, and every 3 minutes while it is on screen, read the tiny
+   data/latest.json (list of edition names) from every host; only when it differs, load the full list.
+   A new newest edition is switched to at once if nothing is playing; while playing, only the 往期 list grows. */
+var lastIdx=Date.now(),idxBusy=false;
+function stemsOf(d){return d.editions.map(function(e){return e.stem}).join()}
+function latest(){return new Promise(function(res){var best=null,left=REMOTE.length;
+  REMOTE.forEach(function(b){fetch(b+'data/latest.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null})
+    .then(function(d){if(d&&d.stems&&(!best||String(d.built)>String(best.built)))best=d}).catch(function(){})
+    .then(function(){if(--left===0)res(best)})})})}
+function refreshIndex(force){
+  if(!data||idxBusy||(!force&&(document.hidden||Date.now()-lastIdx<60e3)))return;lastIdx=Date.now();idxBusy=true;
+  latest().then(function(l){if(l&&l.stems.slice(0,KEEP).join()===stemsOf(data))return null;return fetchIndex()})
+  .then(function(d){if(!d||!d.editions||!d.editions.length||stemsOf(d)===stemsOf(data))return;
+    var top=d.editions[0].stem!==data.editions[0].stem,cur=ed&&ed.stem;data=d;
+    console.log('listen-refresh '+d.editions[0].stem+' n='+d.editions.length);
+    if(top&&A.paused){pick(0);return}
+    var k=data.editions.map(function(e){return e.stem}).indexOf(cur);if(k>=0)ed=data.editions[k]})
+  .catch(function(){}).then(function(){idxBusy=false})}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)refreshIndex(true)});
+window.addEventListener('focus',function(){refreshIndex(true)});
+window.onAppResume=function(){refreshIndex(true)}; // the app calls this in onResume (1.0.16+)
+setInterval(function(){refreshIndex(false)},3*60e3);
 /* first load; with no network, say so and keep trying (the app has no refresh button) */
 (function first(){fetchIndex().then(function(d){data=d;pick(0)}).catch(function(){
   $('sub').textContent=NATIVE?'网络不通，网好了会自动加载':'加载失败，请检查网络后刷新';if(NATIVE)setTimeout(first,8000)})})();
