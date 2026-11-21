@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="8">
+<meta name="ui-version" content="9">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -576,6 +576,7 @@ function latest(){return new Promise(function(res){var best=null,left=REMOTE.len
     .then(function(){if(--left===0)res(best)})})})}
 function refreshIndex(force){
   if(!data||idxBusy||(!force&&(document.hidden||Date.now()-lastIdx<60e3)))return;lastIdx=Date.now();idxBusy=true;
+  console.log('listen-check '+(force?'return':'timer')); // shows in the app's logcat (emulator test)
   latest().then(function(l){if(l&&l.stems.slice(0,KEEP).join()===stemsOf(data))return null;return fetchIndex()})
   .then(function(d){if(!d||!d.editions||!d.editions.length||stemsOf(d)===stemsOf(data))return;
     var top=d.editions[0].stem!==data.editions[0].stem,cur=ed&&ed.stem;data=d;
