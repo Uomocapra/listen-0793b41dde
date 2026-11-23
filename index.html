@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="15">
+<meta name="ui-version" content="17">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -251,8 +251,9 @@ function ease(p){return p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2}
 function spring(x){return{x:x,v:0,t:x}}
 function step(s,w,z,dt){s.v+=(-2*z*w*s.v-w*w*(s.x-s.t))*dt;s.x+=s.v*dt}
 var B={fx:spring(0),fy:spring(0),rot:spring(0),open:spring(1),len:spring(1),smile:spring(0),hop:spring(0),
-  squash:spring(1),pop:spring(0),jig:spring(0),ew:spring(1),landN:0,wiggle:-9,wake:-9,daze:null,nextDaze:6,next:0,nextBlink:1.5,blinkAt:-9,smileUntil:0,nextSmile:3,nextHop:2,last:0,wk:null};
+  squash:spring(1),pop:spring(0),jig:spring(0),ew:spring(1),landN:0,wiggle:-9,wake:-9,daze:null,nextDaze:6,next:0,nextBlink:1.5,blinkAt:-9,smileUntil:0,nextSmile:3,nextHop:2,last:0,wk:null,ang:spring(0),sad:spring(0),mood:null,nextMood:14,wasWork:false};
 function rnd(a,b){return a+Math.random()*(b-a)}
+if(/[?&]debug(&|$)/.test(location.search))document.addEventListener('dbgmood',function(){var k=document.body.getAttribute('data-mood');B.mood=k?{k:k,t0:B.last,dur:30}:null;B.lauN=-1}); // test expressions in a browser
 function bot(t,P,lv,sl){
   var dt=Math.min(0.05,t-(B.last||t));B.last=t;
   var work=!A.paused;
@@ -295,6 +296,18 @@ function bot(t,P,lv,sl){
   if(look){var bx=W/2+sl,by=(H-70)/2+8,lx=Math.max(-1,Math.min(1,(LK.x-bx)/(W*0.42))),ly=Math.max(-1,Math.min(1,(LK.y-by)/(H*0.42)));
     B.fx.t=lx*0.42;B.fy.t=ly*(ly>0?0.26:0.34);B.rot.t=lx*6;B.len.t=1;B.smile.t=0;B.next=t+0.8;B.nextDaze=t+8;B.wk=null;B.intro=null;
     if(B.daze){B.daze=null;B.len.t=1}}
+  /* moods (Mi 2026-11-23): 喜 = the ∩ smile above; 怒 = woken from a daze by a finger: lids slant in, red tint, shake;
+     哀 = right after pausing, or now and then when idle: lids slant out, looks down, sinks, one tear;
+     乐 = the ball that was just swiped in, or now and then when idle: ∩ eyes and quick little bounces */
+  if(B.wasWork&&!work&&!B.mood)B.mood={k:'sad',t0:t,dur:2.6};B.wasWork=work;
+  if(!work&&!B.daze&&!B.mood&&!LK.on&&t>B.nextMood&&t>B.smileUntil+0.5){B.mood={k:Math.random()<.5?'sad':'lau',t0:t,dur:rnd(2.2,3)};B.nextMood=t+rnd(10,18)}
+  if(B.mood&&t-B.mood.t0>B.mood.dur){B.mood=null;B.nextMood=Math.max(B.nextMood,t+rnd(6,10))}
+  var mk=B.mood&&t>=B.mood.t0?B.mood.k:null,mt=B.mood?t-B.mood.t0:0;
+  B.ang.t=mk==='ang'?1:0;B.sad.t=mk==='sad'?1:0;
+  if(mk){B.daze=null;B.nextDaze=Math.max(B.nextDaze,t+8);B.next=t+0.4}
+  if(mk==='sad'){B.smile.t=0;B.len.t=0.85;if(!look&&!isDragging()){B.fy.t=0.3;B.fx.t*=0.6;B.rot.t=0}}
+  if(mk==='ang'){B.smile.t=0;B.len.t=0.92;if(!look&&!isDragging()){B.fx.t=0;B.fy.t=0.04;B.rot.t=0}}
+  if(mk==='lau'){B.smile.t=1;var ln=Math.floor(mt/0.3);if(ln!==B.lauN&&mt<B.mood.dur-0.4){B.lauN=ln;B.hop.v-=1.7;B.squash.v+=1.6;B.jig.v+=2}}
   var panic=isDragging();
   if(panic){ // finger on the ball: drop everything at once (smile, daze, hops), eyes pop big, shrink back, then frantic left-right glances
     if(B.panicT0==null){B.panicT0=t;B.smile.x=0;B.smile.v=0;B.daze=null;B.wake=-9;B.landN=2;B.wiggle=-9;B.intro=null;B.hop.x=0;B.hop.v=0;
@@ -308,7 +321,7 @@ function bot(t,P,lv,sl){
   // --- springs ---
   var sub=4,h=dt/sub;for(var i=0;i<sub;i++){
     step(B.fx,panic?26:(look?18:(work?11:6)),panic?.55:(work?.85:.5),h);step(B.fy,intro>=0?22:(panic?26:(look?18:(work?11:6))),panic?.55:(work?.85:.5),h);step(B.rot,8,.6,h);
-    step(B.open,40,.7,h);step(B.len,startled?40:10,startled?.5:.8,h);step(B.smile,(intro>=0||wk<1.2)?14:4.5,1,h);step(B.ew,30,.55,h);step(B.hop,16,.35,h);step(B.pop,13,.35,h);step(B.jig,24,.16,h);step(B.squash,18,.3,h)}
+    step(B.open,40,.7,h);step(B.len,startled?40:10,startled?.5:.8,h);step(B.smile,(intro>=0||wk<1.2)?14:4.5,1,h);step(B.ew,30,.55,h);step(B.hop,16,.35,h);step(B.pop,13,.35,h);step(B.jig,24,.16,h);step(B.squash,18,.3,h);step(B.ang,14,.8,h);step(B.sad,7,.9,h)}
   B.squash.t=1;
   // --- geometry ---
   var R0=Math.min(W,H-70)*0.33,R=R0*(0.94+0.18*lv)*(1+0.18*B.pop.x);
@@ -320,10 +333,10 @@ function bot(t,P,lv,sl){
     else if(tau>=0&&tau<1){jy=-4*0.34*tau*(1-tau);var air=Math.sin(tau*Math.PI);jsx*=1-0.07*air;jsy*=1+0.1*air}
     if(tau>=1&&(B.landN||0)<=j&&wk<3){B.landN=j+1;B.jig.v+=9;if(j===1)B.wiggle=t}}
   var wg=t-(B.wiggle||-9),wig=wg>=0&&wg<1.6?0.16*Math.sin(wg*17)*Math.exp(-wg*3.2):0;
-  var X=W/2+sl,Y=(H-70)/2+8+B.hop.x*R*0.12+jy*R;
+  var X=W/2+sl+Math.sin(t*41)*R*0.03*B.ang.x*(mt<0.7?1:0.35),Y=(H-70)/2+8+B.hop.x*R*0.12+jy*R+R*0.05*B.sad.x;
   var sq=B.squash.x,jg=B.jig.x,sx=(1+(sq-1)*0.06)*jsx*(1+0.13*jg),sy=(1-(sq-1)*0.06)*jsy*(1-0.13*jg);
   // --- carousel: the other ball sits one slot away (the neighbor while dragging, the old one after a switch) ---
-  var cur={fx:B.fx.x,fy:B.fy.x,rot:B.rot.x,ew:B.ew.x,len:B.len.x,open:B.open.x,smile:B.smile.x};
+  var cur={fx:B.fx.x,fy:B.fy.x,rot:B.rot.x,ew:B.ew.x,len:B.len.x,open:B.open.x,smile:B.smile.x,ang:B.ang.x,sad:B.sad.x,tear:mk==='sad'?mt:-1};
   if(Math.abs(sl)>1){var sg=Math.sign(sl),oX=W/2+sl-sg*slotD(),o;
     if(B.oth)o=B.oth;else{if(!B.nb||B.nb.sg!==sg)B.nb={sg:sg,pal:pal(ed.voices[(vi-sg+ed.voices.length)%ed.voices.length].id),e:{fx:sg*0.2,fy:0,rot:0,ew:1,len:1,open:1,smile:0}};o=B.nb}
     var oe=o.e,k8=0.18;oe.fx+=(sg*0.45-oe.fx)*k8;oe.fy+=(0-oe.fy)*k8;oe.rot*=0.9;oe.smile*=0.85;oe.open=1;
@@ -339,7 +352,8 @@ function drawBall(X,Y,R,sx,sy,wig,P,lv,e){
   cx.fillStyle=g;cx.beginPath();cx.arc(X,Y,R*1.55,0,7);cx.fill();
   // ball: one flat color, a hint of shading
   cx.save();cx.translate(X,Y);cx.rotate(wig);cx.scale(sx,sy);
-  cx.beginPath();cx.arc(0,0,R,0,7);cx.fillStyle=rgb(P.b);cx.fill();
+  var ag=e.ang||0,sd=e.sad||0,base=P.b;if(ag>0.01)base=mix(base,[226,64,64],0.7*ag);if(sd>0.01)base=mix(base,[120,130,150],0.3*sd);
+  cx.beginPath();cx.arc(0,0,R,0,7);cx.fillStyle=rgb(base);cx.fill();
   var sh=cx.createRadialGradient(-R*.3,-R*.35,R*.1,0,0,R);sh.addColorStop(0,'rgba(255,255,255,.14)');sh.addColorStop(1,'rgba(0,0,0,.10)');
   cx.fillStyle=sh;cx.fill();
   // eyes, clipped to the ball and foreshortened near the edge like on a sphere (no colored trails, no mouth)
@@ -356,11 +370,16 @@ function drawBall(X,Y,R,sx,sy,wig,P,lv,e){
       else{var q3=(k-.5)*2,ar=R*0.15,span=Math.PI*0.8*q3;cx.lineWidth=ew*2*(1-q3)+R*0.12*q3;
         cx.beginPath();cx.arc(0,ar,ar,Math.PI*1.5-span/2-0.001,Math.PI*1.5+span/2+0.001);cx.stroke()}}
     else{ // plain pill, same width top and bottom; when shorter than wide (blink, daze) it flattens, width unchanged
-      var hh=len*open/2;cx.beginPath();
+      var hh=len*open/2;
+      if((ag>0.02||sd>0.02)&&hh>ew){var inn=-s,cut=function(xx){var sd2=inn*xx/ew;return -hh+hh*(ag*(0.6+0.6*sd2)+sd*(0.6-0.75*sd2))};
+        cx.beginPath();cx.moveTo(-ew*1.6,cut(-ew*1.6));cx.lineTo(ew*1.6,cut(ew*1.6));cx.lineTo(ew*1.6,hh*2);cx.lineTo(-ew*1.6,hh*2);cx.closePath();cx.clip()}
+      cx.beginPath();
       if(hh>=ew){cx.arc(0,-hh+ew,ew,Math.PI,0);cx.lineTo(ew,hh-ew);cx.arc(0,hh-ew,ew,0,Math.PI);cx.closePath()}
       else cx.ellipse(0,0,ew,Math.max(ew*0.1,hh),0,0,7);
       cx.fill()}
     cx.restore()}
+  if(e.tear>0.5&&e.tear<2.5){var tp=(e.tear-0.5)/2,tq=pos(e.fx-0.235,R),tx=tq.x,ty=tq.y+e.fy*R*0.55-R*0.06+R*0.22*e.len+tp*R*0.55,tr=R*0.04;
+    cx.globalAlpha=Math.min(1,(1-tp)*3);cx.fillStyle='rgba(215,238,255,.95)';cx.beginPath();cx.arc(tx,ty,tr,0,Math.PI);cx.lineTo(tx,ty-tr*2.2);cx.closePath();cx.fill();cx.globalAlpha=1}
   cx.restore()}
 // a point on the front of the sphere: u in [-1.3,1.3] (0 = center) -> x offset and horizontal foreshortening
 function pos(u,R){var a=u*1.15;return{x:Math.sin(a)*R*0.82,y:-(1-Math.cos(a))*R*0.42,f:Math.max(0,Math.cos(a))}}
@@ -394,7 +413,8 @@ L.addEventListener('touchstart',function(){touching=true;autoUntil=0},{passive:t
 L.addEventListener('touchend',function(){touching=false;if(aiming)userScrolling()},{passive:true});
 L.addEventListener('wheel',function(){autoUntil=0},{passive:true});
 L.addEventListener('scroll',function(){if(touching||aiming||Date.now()>autoUntil)userScrolling()},{passive:true});
-L.onclick=function(e){var d=e.target.closest('.ln');if(!d){toggleLyr(false);return}e.stopPropagation();
+// Android sends a click right after the tap that opened the text; it lands on the text view and must not close it (Mi 2026-11-23)
+L.onclick=function(e){if(Date.now()-lyrOpenedAt<500)return;var d=e.target.closest('.ln');if(!d){toggleLyr(false);return}e.stopPropagation();
   var i=+d.getAttribute('data-i');if(aiming&&i===lastAim)playLine(i)};
 /* top-left button: in ball view it shows a text icon; in text view it shows a tiny ball doing the Grok Bot idle (glances, blinks) */
 var MC=$('mini'),mcx=MC.getContext('2d'),M={fx:0,fy:0,tx:0,ty:0,next:0,blink:-9,nextBlink:1};
@@ -407,7 +427,8 @@ function drawMini(t){
   drawBall(S/2,S/2,18+0.6*Math.sin(t*1.6),1,1,0,palTo,0,{fx:M.fx,fy:M.fy,rot:0,ew:1,len:1,open:(t-M.blink)<0.09?0.08:1,smile:0});
   cx=keep}
 $('mode').onclick=function(){toggleLyr(!showLyr)};
-function toggleLyr(on){if(!on&&aiming)endAim(false);showLyr=on;$('mText').style.display=on?'none':'';MC.hidden=!on;$('mode').setAttribute('aria-label',on?'看球':'看文字');L.hidden=!on;cv.style.visibility=on?'hidden':'visible';$('vlabel').style.opacity=on?0:1;$('vlabel').style.pointerEvents=on?'none':'';if(on){curLn=-1;follow(true)}}
+var lyrOpenedAt=0;
+function toggleLyr(on){if(on&&!showLyr)lyrOpenedAt=Date.now();if(!on&&aiming)endAim(false);showLyr=on;$('mText').style.display=on?'none':'';MC.hidden=!on;$('mode').setAttribute('aria-label',on?'看球':'看文字');L.hidden=!on;cv.style.visibility=on?'hidden':'visible';$('vlabel').style.opacity=on?0:1;$('vlabel').style.pointerEvents=on?'none':'';if(on){curLn=-1;follow(true)}}
 
 /* ---------- player ---------- */
 function V(){return ed.voices[vi]}
@@ -459,7 +480,7 @@ function commitSwitch(sg,idx){ // sg: +1 = the new ball comes from the left, -1 
   var nbE=(B.nb&&B.nb.sg===sg)?B.nb.e:{fx:sg*0.3,fy:0,rot:0,ew:1,len:1,open:1,smile:0};
   B.oth={pal:palTo,e:{fx:B.fx.x,fy:B.fy.x,rot:B.rot.x,ew:B.ew.x,len:B.len.x,open:1,smile:0}};B.nb=null;
   ['fx','fy','rot','ew','len','smile'].forEach(function(k){B[k].x=nbE[k];B[k].v=0});B.ew.t=1;B.len.t=1;B.smile.t=0;B.next=0;
-  slide=slide-sg*slotD();slideV=0;useVoice(idx,true)}
+  slide=slide-sg*slotD();slideV=0;B.mood={k:'lau',t0:(B.last||0)+0.35,dur:2.2};B.lauN=-1;useVoice(idx,true)}
 function useVoice(i,keepSentence){
   var wasPlaying=!A.paused,sent=(keepSentence&&lines.length)?lineAt(A.currentTime):-1,seq=++loadSeq;
   vi=(i+ed.voices.length)%ed.voices.length;var v=V();prefs.voice=v.id;save();
@@ -514,7 +535,7 @@ function up(x){if(sx===null)return;var dx=x-sx;sx=null;dragX=0;
 var st=$('stage');
 st.addEventListener('touchstart',function(e){var t=e.touches[0];down(t.clientX,t.clientY)},{passive:true});
 st.addEventListener('touchmove',function(e){var t=e.touches[0];move(t.clientX,t.clientY,e)},{passive:false});
-st.addEventListener('touchend',function(e){var t=e.changedTouches[0];up(t.clientX)});
+st.addEventListener('touchend',function(e){var t=e.changedTouches[0],was=showLyr;up(t.clientX);if(showLyr&&!was&&e.cancelable)e.preventDefault()});
 var mdown=false;
 /* look-at-finger and ripple: anywhere on the screen, touch or mouse button held */
 var LK={on:false,x:0,y:0,up:-9};
@@ -522,7 +543,7 @@ function lkSet(cx0,cy0){var r=st.getBoundingClientRect();LK.x=cx0-r.left;LK.y=cy
 function ripple(x,y){var c=(palTo&&palTo.g)||[140,140,160];
   ['a','b'].forEach(function(k){var d=document.createElement('div');d.className='rip '+k;d.style.left=x+'px';d.style.top=y+'px';d.style.borderColor='rgba('+c.join(',')+',.75)';
     d.style.background='radial-gradient(circle,rgba('+c.join(',')+',0) 45%,rgba('+c.join(',')+',.16) 100%)';document.body.appendChild(d);setTimeout(function(){d.remove()},1000)})}
-document.addEventListener('pointerdown',function(e){LK.on=true;lkSet(e.clientX,e.clientY);ripple(e.clientX,e.clientY)},{passive:true});
+document.addEventListener('pointerdown',function(e){if(B.daze&&!showLyr){B.mood={k:'ang',t0:B.last||0,dur:2.4}}LK.on=true;lkSet(e.clientX,e.clientY);ripple(e.clientX,e.clientY)},{passive:true});
 document.addEventListener('pointermove',function(e){if(LK.on)lkSet(e.clientX,e.clientY)},{passive:true});
 document.addEventListener('touchmove',function(e){if(LK.on&&e.touches[0])lkSet(e.touches[0].clientX,e.touches[0].clientY)},{passive:true});
 function lkUp(){if(LK.on){LK.on=false;LK.up=(performance.now()-t0)/1000}}
