@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="13">
+<meta name="ui-version" content="14">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -43,6 +43,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
 .aimbar.on .aimgo{pointer-events:auto;transform:none}
 .aimgo:active{transform:scale(.9)}
 /* contents: liquid-glass panel that grows out of the top-right button (Mi 2026-11-20) */
+.ver{position:fixed;left:calc(10px + env(safe-area-inset-left));bottom:calc(4px + env(safe-area-inset-bottom));font-size:11px;line-height:1;color:var(--mute);opacity:.7;pointer-events:none;z-index:1}
 .tocb{position:fixed;right:calc(14px + env(safe-area-inset-right));top:calc(14px + env(safe-area-inset-top));height:46px;min-width:46px;padding:0 15px;border-radius:23px;border:0;background:var(--chip);color:var(--fg);font-family:inherit;font-size:16px;font-weight:600;z-index:8;display:flex;align-items:center;justify-content:center}
 .tocb[hidden]{display:none}
 .tocb svg{width:18px;height:18px;display:none}
@@ -147,7 +148,8 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border:0;border-radiu
 <script>
 (function(){
 var $=function(i){return document.getElementById(i)},A=$('a');
-console.log('listen-ui '+(document.querySelector('meta[name=ui-version]')||{}).content); // shows in the app's logcat (update test)
+console.log('listen-ui '+(document.querySelector('meta[name=ui-version]')||{}).content);
+(function(){var v=document.createElement('div');v.className='ver';v.id='ver';v.textContent='v'+((document.querySelector('meta[name=ui-version]')||{}).content||'?');document.body.appendChild(v)})(); // Mi 2026-11-23: version in the bottom-left corner // shows in the app's logcat (update test)
 /* Inside the Android app the page is a local file and the app plays the audio (screen off, lock screen).
    NativePlayer is the app's bridge; data and audio then come from these hosts, tried in order. */
 var NATIVE=window.NativePlayer||null;
@@ -156,7 +158,7 @@ var NATIVE=window.NativePlayer||null;
    asks all of them and keeps the newest). On the website the page's own host comes first. */
 var JSD=['https://testingcf.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/','https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@main/'];
 var KEEP=21; // past editions offered: one week (build_site.py --keep)
-var REMOTE=NATIVE?['https://zippy-cannoli-b04b24.netlify.app/'].concat(JSD):[''].concat(JSD); // Netlify back 2026-11-21: jsDelivr @main can stay stale for 12 h even after a purge
+var REMOTE=NATIVE?JSD.slice():[''].concat(JSD); // Netlify out for good 2026-11-23 (v14): credits ran out on 11-22, its list stayed on 11-22 15:00 and won the race on Mi's phone
 function fetchAny(path,kind){var i=0;return new Promise(function(res,rej){(function go(){if(i>=REMOTE.length)return rej(new Error('all failed'));
   fetch(REMOTE[i++]+path,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(r.status);return kind==='json'?r.json():r.text()}).then(res).catch(go)})()})}
 function nativeAudio(){ // looks like an <audio> element to the rest of the page, but drives the app's player
@@ -407,7 +409,7 @@ function setIcon(){$('ico').innerHTML=A.paused?'<path d="M8 5.5v13l11-6.5z"/>':'
    The list names the commit its files are in (data.rev, written by publish_edition.py): fetching by commit, gcore
    can't hand out a stale @main that doesn't have the new edition yet. Older lists without rev use @main.
    On the website (not the app) the page's own host ('') is tried too. */
-var MIRRORS=['https://gcore.jsdelivr.net','https://testingcf.jsdelivr.net',NATIVE?'https://zippy-cannoli-b04b24.netlify.app':'','https://fastly.jsdelivr.net'];
+var MIRRORS=['https://gcore.jsdelivr.net','https://testingcf.jsdelivr.net'].concat(NATIVE?[]:['']).concat(['https://fastly.jsdelivr.net']);
 var srcIdx=0,srcTimer=0,lastErr='',resumeAt=0,allFailed=false;
 function srcFor(v,i){var h=MIRRORS[i];return h===''?v.url:/netlify/.test(h)?h+'/'+v.url:h+'/gh/Uomocapra/listen-0793b41dde@'+((data&&data.rev)||'main')+'/'+v.url}
 /* keepT: where to continue in this same recording (0 = from the start). It is carried along while sources fail one
@@ -420,7 +422,7 @@ function trySource(i,autoplay,keepT){
 function here(){return (A.readyState>=1&&A.currentTime)||resumeAt||0}
 function nextSource(why){lastErr=why||lastErr;var t=here();
   if(srcIdx+1<MIRRORS.length){trySource(srcIdx+1,wantPlay,t)}
-  else{allFailed=true;resumeAt=t;$('err').textContent='网络不通，声音下载不下来。网好了会自动接着放'}}
+  else{allFailed=true;resumeAt=t;$('err').textContent='网络不通，声音下载不下来。网好了会自动接着放（错误码 E2'+(lastErr?'-'+lastErr:'')+'）'}}
 /* every source failed (no network): try again every 10 s and as soon as the phone says it is back online */
 function retryAll(){if(allFailed)trySource(0,wantPlay,resumeAt)}
 setInterval(retryAll,10000);window.addEventListener('online',function(){setTimeout(retryAll,1500)});
@@ -555,11 +557,23 @@ size();requestAnimationFrame(frame);
 /* jsDelivr's @main can stay stale for 12 h even after a purge (2026-11-21), so publish_edition.py also tags every
    edition (1.YYYYMMDD.HHMMnn). jsDelivr's API names the newest tag within ~10 minutes, and files fetched @tag are fresh
    at once. Those hosts are asked too; if the API doesn't answer in 4 s, only the fixed hosts are used. */
+/* Error codes (Mi 2026-11-23), so Mom can read one out or send a screenshot. Shown next to the version, bottom left:
+   E1 no edition list from any host (also in the subtitle)   E2-<why> no host could play the audio (also in the message)
+   E3 the newest tag is newer than the edition on screen (stale list)   E4 jsDelivr's tag API didn't answer (fixed hosts only) */
+var lastTag=null,tagFail=false;
+function diag(){var c=[],el=$('ver');if(!el)return;
+  if(!data)c.push('E1');
+  if(tagFail)c.push('E4');
+  var m=lastTag&&String(lastTag).match(/^1\.(\d{8})\.(\d+)$/);
+  if(m&&data&&data.editions&&data.editions[0]){var hm=('000000'+m[2]).slice(-6).slice(0,4),
+    ts=m[1].slice(0,4)+'-'+m[1].slice(4,6)+'-'+m[1].slice(6)+'-'+hm;if(ts>data.editions[0].stem)c.push('E3')}
+  el.textContent='v'+((document.querySelector('meta[name=ui-version]')||{}).content||'?')+(c.length?' · '+c.join(' '):'')}
 var TAGAPI='https://data.jsdelivr.com/v1/packages/gh/Uomocapra/listen-0793b41dde/resolved?specifier=latest';
 function hosts(){return new Promise(function(res){var done=false,c=window.AbortController?new AbortController():null,
   t=setTimeout(function(){if(c)c.abort();fin(null)},4000);
-  function fin(v){if(done)return;done=true;clearTimeout(t);if(v)console.log('listen-tag '+v);
-    res(v?['https://testingcf.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@'+v+'/','https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@'+v+'/'].concat(REMOTE):REMOTE)}
+  function fin(v){if(done)return;done=true;clearTimeout(t);if(v)console.log('listen-tag '+v);tagFail=!v;if(v)lastTag=v;
+    var H=v?['https://testingcf.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@'+v+'/','https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@'+v+'/'].concat(REMOTE):REMOTE.slice();
+    H.tagged=v?2:0;res(H)}
   fetch(TAGAPI+'&t='+Date.now(),{cache:'no-store',signal:c?c.signal:undefined}).then(function(r){return r.ok?r.json():null})
     .then(function(d){fin(d&&d.version)}).catch(function(){fin(null)})})}
 /* In the app, ask every host for the list of editions and keep the newest ("built"): some jsDelivr nodes lag. Waits for all hosts, or 2.5 s after the first answer. */
@@ -571,10 +585,13 @@ function fetchIndex(){return hosts().then(function(H){
       var ok=best.stems?best.stems.join():null,seen={},eds=[];all.forEach(function(d){d.editions.forEach(function(e){
         if(!seen[e.stem]&&(!ok||ok.indexOf(e.stem)>=0)){seen[e.stem]=1;eds.push(e)}})});
       eds.sort(function(a,b){return a.stem<b.stem?1:a.stem>b.stem?-1:0});best.editions=eds.slice(0,KEEP);res(best)}
-    H.forEach(function(b){var c=window.AbortController?new AbortController():null;setTimeout(function(){if(c)c.abort()},9000);
+    /* v14: when the newest tag is known, the list @tag is the fresh one by definition. Wait for it (up to the 9 s
+       abort) instead of finishing 2.5 s after whichever host answered first; finish as soon as it is in. */
+    H.forEach(function(b,i){var c=window.AbortController?new AbortController():null;setTimeout(function(){if(c)c.abort()},9000);
       fetch(b+'data/index.json?'+Date.now(),{cache:'no-store',signal:c?c.signal:undefined}).then(function(r){return r.ok?r.json():null})
         .then(function(d){if(!d||!d.editions||!d.editions.length)return;all.push(d);
-          if(!best||String(d.built)>String(best.built)){if(!best)setTimeout(fin,2500);best=d}})
+          if(!best||String(d.built)>String(best.built))best=d;
+          if(i<H.tagged)setTimeout(fin,300);else if(!H.tagged&&all.length===1)setTimeout(fin,2500)})
         .catch(function(){}).then(function(){if(--left===0)fin()})})})})}
 /* The app stays open in the background (back = keep running), so new editions must show up without closing it
    (Mi 2026-11-21): whenever the page comes back into view, and every 3 minutes while it is on screen, read the tiny
@@ -595,14 +612,14 @@ function refreshIndex(force){
     console.log('listen-refresh '+d.editions[0].stem+' n='+d.editions.length);
     if(top&&A.paused){pick(0);return}
     var k=data.editions.map(function(e){return e.stem}).indexOf(cur);if(k>=0)ed=data.editions[k]})
-  .catch(function(){}).then(function(){idxBusy=false})}
+  .catch(function(){}).then(function(){idxBusy=false;diag()})}
 document.addEventListener('visibilitychange',function(){if(!document.hidden)refreshIndex(true)});
 window.addEventListener('focus',function(){refreshIndex(true)});
 window.onAppResume=function(){refreshIndex(true)}; // the app calls this in onResume (1.0.16+)
 setInterval(function(){refreshIndex(false)},3*60e3);
 /* first load; with no network, say so and keep trying (the app has no refresh button) */
-(function first(){fetchIndex().then(function(d){data=d;pick(0)}).catch(function(){
-  $('sub').textContent=NATIVE?'网络不通，网好了会自动加载':'加载失败，请检查网络后刷新';if(NATIVE)setTimeout(first,8000)})})();
+(function first(){fetchIndex().then(function(d){data=d;pick(0);diag()}).catch(function(){
+  $('sub').textContent=(NATIVE?'网络不通，网好了会自动加载':'加载失败，请检查网络后刷新')+'（错误码 E1）';diag();if(NATIVE)setTimeout(first,8000)})})();
 })();
 </script>
 </body>
