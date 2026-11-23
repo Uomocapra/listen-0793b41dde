@@ -1,12 +1,12 @@
 {
- "code": 15,
- "name": "1.0.15",
- "size": 5328817,
- "sha256": "0b9609d2b8227c48be4b81236ac03d4f6d9aeb5d10c2153c4a95196475133575",
- "note": "这一版：按返回键会先关掉打开的列表；网断了再连上，会自己接着放。",
+ "code": 22,
+ "name": "1.0.22",
+ "size": 5331161,
+ "sha256": "bab28768b14617a85871c762e0b7155c8d1387fe18ac0eb23f5e23c5df65d03c",
+ "note": "这一版：新闻会更新得更及时，不会再停在旧的一期。",
  "urls": [
-  "https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@f9caa4d8a7e069c43fa7ea8ecb9f5601e0b1f0fe/app/tingxinwen.apk",
-  "https://testingcf.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@f9caa4d8a7e069c43fa7ea8ecb9f5601e0b1f0fe/app/tingxinwen.apk",
-  "https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@f9caa4d8a7e069c43fa7ea8ecb9f5601e0b1f0fe/app/tingxinwen.apk"
+  "https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@62b11c29fcb7953d1eb0360cbeca004ed24087bb/app/tingxinwen.apk",
+  "https://testingcf.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@62b11c29fcb7953d1eb0360cbeca004ed24087bb/app/tingxinwen.apk",
+  "https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@62b11c29fcb7953d1eb0360cbeca004ed24087bb/app/tingxinwen.apk"
  ]
 }
