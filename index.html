@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="20">
+<meta name="ui-version" content="21">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -315,7 +315,6 @@ function bot(t,P,lv,sl){
   if(panic&&!B.swOn){B.swOn=true;B.swNext=t+0.25}else if(!panic)B.swOn=false;
   if(B.swOn&&t>B.swNext&&B.sweat.length<4){var n0=B.sweat.length,sd0=n0===0?(Math.random()<.5?1:-1):(n0===1?-B.sweat[0].side:(Math.random()<.5?1:-1)),A0=rnd(-1.2,-0.75);
     B.sweat.push({t0:t,side:sd0,a0:sd0>0?A0:-Math.PI-A0,g:rnd(2,2.8)});B.swNext=t+(n0===0?0.45:rnd(0.7,1.1))}
-  B.sweat=B.sweat.filter(function(d){return t-d.t0<3.2});
   if(panic){ // finger on the ball: drop everything at once (smile, daze, hops), eyes pop big, shrink back, then frantic left-right glances
     if(B.panicT0==null){B.panicT0=t;B.smile.x=0;B.smile.v=0;B.daze=null;B.wake=-9;B.landN=2;B.wiggle=-9;B.intro=null;B.hop.x=0;B.hop.v=0;
       B.ew.x=1.45;B.ew.v=0;B.len.x=1.35;B.len.v=0;B.open.x=1}
@@ -357,9 +356,13 @@ function bot(t,P,lv,sl){
      plus a push outward, then flies in an arc, falls and fades */
   var dv=dt>0?(sl-(B.prevSl==null?sl:B.prevSl))/dt:0;B.prevSl=sl;B.dragV=(B.dragV||0)*0.55+dv*0.45;
   var BY=Y+R*(1-sy)*0.9;
-  if(panic&&B.sweat.length&&Math.abs(B.dragV)>W*1.2){
+  B.sweat=stepSweat(B.sweat,t,dt,R,function(dp){var q=sweatAt(dp,t,R),sg=dp.w>=0?1:-1,v=Math.abs(dp.w)*q.rr;
+    B.fly.push({x:X+q.px*sx,y:BY+q.py*sy,vx:-Math.sin(q.a)*sg*v,vy:Math.cos(q.a)*sg*v,t0:t,r:q.dr})});
+  if(B.oth&&B.oth.e.sweat)B.oth.e.sweat=stepSweat(B.oth.e.sweat,t,dt,R,null);
+  var shk=performance.now()-SHK.t<150;
+  if(B.sweat.length&&(shk||panic&&Math.abs(B.dragV)>W*1.2)){var sk=shk?Math.min(2,SHK.m/13):0;SHK.t=-9;
     B.sweat.forEach(function(dp){var q=sweatAt(dp,t,R);if(!q||q.gr<0.5)return;var ox=Math.cos(q.a),oy=Math.sin(q.a);
-      B.fly.push({x:X+q.px*sx,y:BY+q.py*sy,vx:B.dragV*0.9+ox*R*1.6,vy:-R*1.6+oy*R*0.8,t0:t,r:q.dr})});
+      B.fly.push({x:X+q.px*sx,y:BY+q.py*sy,vx:(sk?SHK.x*R*3*sk:B.dragV*0.9)+ox*R*1.2,vy:(sk?SHK.y*R*3*sk:0)+oy*R*1.2-GV.y*R*0.8,t0:t,r:q.dr})});
     B.sweat=B.sweat.filter(function(dp){var q=sweatAt(dp,t,R);return !q||q.gr<0.5});B.swNext=t+0.7}
   if(B.spin){var st0=t-B.spin.t0;for(var ri=0;ri<3;ri++){var rp=(st0-0.15-ri*0.2)/1.4;if(rp<0||rp>1)continue;
     cx.save();cx.globalAlpha=0.9*(1-rp);var RC=['#ff5f6d','#ffc371','#fff275','#6dd47e','#4fc3f7','#7c6cff','#e66bff','#ff5f6d'];
@@ -368,7 +371,7 @@ function bot(t,P,lv,sl){
     cx.lineWidth=R*0.1*(1-rp)+1;cx.shadowColor='rgba(255,255,255,.7)';cx.shadowBlur=R*0.12;cx.beginPath();cx.arc(X,BY,R*(1.03+1.4*ease(rp)),0,7);cx.stroke();cx.restore()}}
   drawBall(X,BY,R,sx,sy,wig+spinA,P,lv,cur);
   B.fly=B.fly.filter(function(f){return t-f.t0<1.4});
-  B.fly.forEach(function(f){f.vy+=R*7*dt;f.x+=f.vx*dt;f.y+=f.vy*dt;var al=Math.min(1,(1.4-(t-f.t0))/0.4);
+  B.fly.forEach(function(f){var gm=R*7*Math.max(0.35,GV.m);f.vx+=GV.x*gm*dt;f.vy+=GV.y*gm*dt;f.x+=f.vx*dt;f.y+=f.vy*dt;var al=Math.min(1,(1.4-(t-f.t0))/0.4);
     cx.save();cx.translate(f.x,f.y);cx.rotate(Math.atan2(f.vy,f.vx)-Math.PI/2);cx.globalAlpha=al;drop(f.r,1.5);cx.restore()});
   cx.globalAlpha=1}
 function slotD(){return W*0.9}
@@ -425,11 +428,11 @@ function drawBall(X,Y,R,sx,sy,wig,P,lv,e){
     cx.beginPath();cx.arc(q.x,dy,dr2,0,Math.PI);cx.quadraticCurveTo(q.x-dr2,dy-dr2*1.2,q.x,dy-dr2*2.3);cx.quadraticCurveTo(q.x+dr2,dy-dr2*1.2,q.x+dr2,dy);
     cx.fillStyle='#8fd3ff';cx.fill();cx.stroke();cx.restore()}
   if(e.sweat&&e.sweat.length)for(var di=0;di<e.sweat.length;di++){var dp=e.sweat[di],q=sweatAt(dp,e.now,R);if(!q)continue;
-    var al=Math.min(1,(2.1-q.trav)*2),a=q.a;
+    var al=Math.min(1,8-q.tau),a=q.a,aG=Math.atan2(GV.y,GV.x),sg=q.w>=0?1:-1;
     if(q.mv>0){cx.globalAlpha=al;cx.strokeStyle='rgba(225,242,255,.22)';cx.lineWidth=q.dr*0.7;cx.lineCap='round';cx.beginPath();
-      if(dp.side>0)cx.arc(0,0,q.rr,dp.a0,a);else cx.arc(0,0,q.rr,a,dp.a0);cx.stroke()}
-    var ang=q.mv>0?Math.atan2(Math.cos(a)*dp.side,-Math.sin(a)*dp.side):Math.PI/2,wob=q.mv>0?0:0.08*Math.sin(q.tau*30)*(1-q.gr*0.5);
-    cx.save();cx.translate(q.px,q.py);cx.rotate(ang-Math.PI/2);cx.scale(1-wob,1+wob);cx.globalAlpha=al;drop(q.dr,1+0.5*Math.min(1,q.mv*1.5));cx.restore();cx.globalAlpha=1}
+      if(a>=dp.a0)cx.arc(0,0,q.rr,dp.a0,a);else cx.arc(0,0,q.rr,a,dp.a0);cx.stroke()}
+    var ang=Math.abs(q.w)>0.3?Math.atan2(Math.cos(a)*sg,-Math.sin(a)*sg):aG,wob=q.mv>0?0:0.08*Math.sin(q.tau*30)*(1-q.gr*0.5);
+    cx.save();cx.translate(q.px,q.py);cx.rotate(ang-Math.PI/2);cx.scale(1-wob,1+wob);cx.globalAlpha=al;drop(q.dr,1+0.5*Math.min(1,Math.abs(q.w)*0.8));cx.restore();cx.globalAlpha=1}
   cx.restore()}
 /* angry eyes (Mi 2026-11-23): a comic-style flame burns in each eye: teardrop body, bold dark outline, orange / yellow /
    pale core, the tip whips left and right and trails up past the eye, little licks break off the tip and rise */
@@ -448,8 +451,16 @@ function flame(w,h,t,s,al){cx.save();cx.globalAlpha=al;cx.lineJoin='round';
   cx.restore()}
 // a sweat drop on the ball: where it is now (ball coords), or null once it has run off
 function sweatAt(dp,now,R){var tau=now-dp.t0;if(tau<0)return null;var gr=Math.min(1,tau/0.35);gr=1-Math.pow(1-gr,3);
-  var mv=Math.max(0,tau-0.6),rr=R*0.84,trav=0.5*dp.g*mv*mv;if(trav>2.1)return null;var a=dp.a0+dp.side*trav;
-  return{a:a,px:Math.cos(a)*rr,py:Math.sin(a)*rr,dr:R*0.06*gr*(1+0.2*Math.min(1,mv*2)),gr:gr,mv:mv,trav:trav,rr:rr,tau:tau}}
+  var mv=Math.max(0,tau-0.6),rr=R*0.84,a=dp.a==null?dp.a0:dp.a,w=dp.w||0;
+  return{a:a,px:Math.cos(a)*rr,py:Math.sin(a)*rr,dr:R*0.06*gr*(1+0.2*Math.min(1,Math.abs(w)*0.6)),gr:gr,mv:mv,trav:dp.trav||0,rr:rr,tau:tau,w:w}}
+function wrapA(x){while(x>Math.PI)x-=2*Math.PI;while(x<-Math.PI)x+=2*Math.PI;return x}
+/* sweat physics: a drop sticks for 0.6 s, then slides along the ball toward the real lowest point (gravity's tangential
+   pull minus friction) and drips off there (drip gets the drop); a drop older than 8 s is dropped */
+function stepSweat(arr,t,dt,R,drip){var aG=Math.atan2(GV.y,GV.x),G=R*7*GV.m,rr=R*0.84;
+  return arr.filter(function(dp){if(dp.a==null){dp.a=dp.a0;dp.w=0;dp.trav=0}var tau=t-dp.t0;if(tau>8)return false;if(tau<0.6)return true;
+    var d=wrapA(aG-dp.a);if(Math.abs(d)>3.0)d=dp.side*0.3;dp.w+=G*Math.sin(d)/rr*dt;dp.w*=Math.max(0,1-1.2*dt);
+    var da=dp.w*dt;dp.a+=da;dp.trav+=Math.abs(da);
+    if(drip&&Math.abs(wrapA(aG-dp.a))<0.18){drip(dp);return false}return true})}
 // a water drop pointing along local +y (round end first), with a glint
 function drop(dr,el){cx.fillStyle='rgba(208,234,255,.92)';cx.beginPath();cx.moveTo(dr,0);cx.arc(0,0,dr,0,Math.PI);
   cx.quadraticCurveTo(-dr,-dr*1.1*el,0,-dr*2.3*el);cx.quadraticCurveTo(dr,-dr*1.1*el,dr,0);cx.fill();
@@ -612,6 +623,16 @@ st.addEventListener('touchend',function(e){var t=e.changedTouches[0],was=showLyr
 var mdown=false;
 /* look-at-finger and ripple: anywhere on the screen, touch or mouse button held */
 var LK={on:false,x:0,y:0,up:-9};
+/* real gravity and shakes from the phone's motion sensor (Mi 2026-11-23): sweat runs toward the real ground and a hard
+   shake of the phone flings it off. Device axes (x right, y up) are turned into screen axes (y down) using the screen's
+   rotation. Without a sensor, gravity points down the screen. GV.m < 1 when the phone lies flat (gravity into the screen). */
+var GV={x:0,y:1,m:1},SHK={t:-9,x:0,y:0,m:0};
+window.addEventListener('devicemotion',function(e){var a=e.accelerationIncludingGravity;if(!a||a.x==null)return;
+  var th=((screen.orientation&&screen.orientation.angle)||window.orientation||0)*Math.PI/180,c=Math.cos(th),s=Math.sin(th);
+  var gx=-a.x*c+a.y*s,gy=a.x*s+a.y*c,m=Math.hypot(gx,gy);GV.m=Math.max(0.2,Math.min(1,m/9.8));
+  if(m>1.5){GV.x+=(gx/m-GV.x)*0.25;GV.y+=(gy/m-GV.y)*0.25;var n=Math.hypot(GV.x,GV.y)||1;GV.x/=n;GV.y/=n}
+  var l=e.acceleration;if(l&&l.x!=null){var lx=l.x*c-l.y*s,ly=-l.x*s-l.y*c,lm=Math.hypot(lx,ly);
+    if(lm>13)SHK={t:performance.now(),x:-lx/lm,y:-ly/lm,m:lm}}});
 function lkSet(cx0,cy0){var r=st.getBoundingClientRect();LK.x=cx0-r.left;LK.y=cy0-r.top;petMove()}
 /* petting (Mi 2026-11-23): rub up and down on top of the ball, each stroke within 30 degrees of vertical; after three
    strokes it hops, spins once round with ∩ eyes and sends rainbow ripples out around itself, like Grok's bot.
