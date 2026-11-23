@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="19">
+<meta name="ui-version" content="20">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -152,7 +152,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border:0;border-radiu
 (function(){
 var $=function(i){return document.getElementById(i)},A=$('a');
 console.log('listen-ui '+(document.querySelector('meta[name=ui-version]')||{}).content);
-(function(){var v=document.createElement('div');v.className='ver';v.id='ver';v.textContent='v'+((document.querySelector('meta[name=ui-version]')||{}).content||'?');document.body.appendChild(v)})(); // Mi 2026-11-23: version in the bottom-left corner // shows in the app's logcat (update test)
+(function(){var v=document.createElement('div');v.className='ver';v.id='ver';v.textContent='v0.'+((document.querySelector('meta[name=ui-version]')||{}).content||'?');document.body.appendChild(v)})(); // Mi 2026-11-23: version in the bottom-left corner // shows in the app's logcat (update test)
 /* Inside the Android app the page is a local file and the app plays the audio (screen off, lock screen).
    NativePlayer is the app's bridge; data and audio then come from these hosts, tried in order. */
 var NATIVE=window.NativePlayer||null;
@@ -251,7 +251,7 @@ function ease(p){return p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2}
 function spring(x){return{x:x,v:0,t:x}}
 function step(s,w,z,dt){s.v+=(-2*z*w*s.v-w*w*(s.x-s.t))*dt;s.x+=s.v*dt}
 var B={fx:spring(0),fy:spring(0),rot:spring(0),open:spring(1),len:spring(1),smile:spring(0),hop:spring(0),
-  squash:spring(1),pop:spring(0),jig:spring(0),ew:spring(1),landN:0,wiggle:-9,wake:-9,daze:null,nextDaze:6,next:0,nextBlink:1.5,blinkAt:-9,smileUntil:0,nextSmile:3,nextHop:2,last:0,wk:null,ang:spring(0),sad:spring(0),mood:null,nextMood:14,wasWork:false,sweat:[],swOn:false,swNext:0};
+  squash:spring(1),pop:spring(0),jig:spring(0),ew:spring(1),landN:0,wiggle:-9,wake:-9,daze:null,nextDaze:6,next:0,nextBlink:1.5,blinkAt:-9,smileUntil:0,nextSmile:3,nextHop:2,last:0,wk:null,ang:spring(0),sad:spring(0),mood:null,nextMood:14,wasWork:false,sweat:[],swOn:false,swNext:0,fly:[],tearG:0};
 function rnd(a,b){return a+Math.random()*(b-a)}
 if(/[?&]debug(&|$)/.test(location.search))document.addEventListener('dbgmood',function(){var k=document.body.getAttribute('data-mood');B.mood=k?{k:k,t0:B.last,dur:30}:null;B.lauN=-1}); // test expressions in a browser
 function bot(t,P,lv,sl){
@@ -304,6 +304,7 @@ function bot(t,P,lv,sl){
   if(B.mood&&t-B.mood.t0>B.mood.dur){B.mood=null;B.nextMood=Math.max(B.nextMood,t+rnd(6,10))}
   var mk=B.mood&&t>=B.mood.t0?B.mood.k:null,mt=B.mood?t-B.mood.t0:0;
   B.ang.t=mk==='ang'?1:0;B.sad.t=mk==='sad'?1:0;
+  B.tearG=Math.max(0,Math.min(1,B.tearG+(mk==='sad'?dt/0.9:-dt/1.1)));
   if(mk){B.daze=null;B.nextDaze=Math.max(B.nextDaze,t+8);B.next=t+0.4}
   if(mk==='sad'){B.smile.t=0;B.len.t=1;if(!look&&!isDragging()){B.fy.t=0.14;B.fx.t*=0.6;B.rot.t=0}}
   if(mk==='ang'){B.smile.t=0;B.len.t=0.92;if(!look&&!isDragging()){B.fx.t=0;B.fy.t=0.04;B.rot.t=0}}
@@ -342,14 +343,34 @@ function bot(t,P,lv,sl){
   var X=W/2+sl+Math.sin(t*41)*R*0.03*B.ang.x*(mt<0.7?1:0.35),Y=(H-70)/2+8+B.hop.x*R*0.12+jy*R+R*0.05*B.sad.x;
   var sq=B.squash.x,jg=B.jig.x,sx=(1+(sq-1)*0.06)*jsx*(1+0.13*jg),sy=(1-(sq-1)*0.06)*jsy*(1-0.13*jg);
   // --- carousel: the other ball sits one slot away (the neighbor while dragging, the old one after a switch) ---
-  var cur={fx:B.fx.x,fy:B.fy.x,rot:B.rot.x,ew:B.ew.x,len:B.len.x,open:B.open.x,smile:B.smile.x,ang:B.ang.x,sad:B.sad.x,tear:mk==='sad'?mt:-1,sweat:B.sweat,now:t};
+  var cur={fx:B.fx.x,fy:B.fy.x,rot:B.rot.x,ew:B.ew.x,len:B.len.x,open:B.open.x,smile:B.smile.x,ang:B.ang.x,sad:B.sad.x,tear:B.tearG,sweat:B.sweat,now:t};
   if(Math.abs(sl)>1){var sg=Math.sign(sl),oX=W/2+sl-sg*slotD(),o;
     if(B.oth)o=B.oth;else{if(!B.nb||B.nb.sg!==sg)B.nb={sg:sg,pal:pal(ed.voices[(vi-sg+ed.voices.length)%ed.voices.length].id),e:{fx:sg*0.2,fy:0,rot:0,ew:1,len:1,open:1,smile:0}};o=B.nb}
-    var oe=o.e,k8=0.18;oe.fx+=(sg*0.45-oe.fx)*k8;oe.fy+=(0-oe.fy)*k8;oe.rot*=0.9;oe.smile*=0.85;oe.open=1;
+    var oe=o.e,k8=0.18;oe.now=t;oe.fx+=(sg*0.45-oe.fx)*k8;oe.fy+=(0-oe.fy)*k8;oe.rot*=0.9;oe.smile*=0.85;oe.open=1;
     if(B.oth){oe.ew+=(1.15-oe.ew)*k8;oe.len+=(1.05-oe.len)*k8}
     drawBall(oX,Y,R0*(0.94),1,1,0,o.pal,0,oe)}
   else B.nb=null;
-  drawBall(X,Y+R*(1-sy)*0.9,R,sx,sy,wig,P,lv,cur)}
+  /* petting (Mi 2026-11-23): rub up and down on top of the ball, each stroke within 30 degrees of vertical; after three
+     strokes it hops, spins once round with ∩ eyes and sends rainbow ripples out around itself, like Grok's bot */
+  var spinA=0;if(B.spin){var spp=(t-B.spin.t0-0.15)/1.0;if(spp>0&&spp<1)spinA=Math.PI*2*ease(spp);if(t-B.spin.t0<2.2)B.smile.t=1;else B.spin=null}
+  /* a fast swing while dragging flings the sweat off (Mi 2026-11-23): each drop leaves the ball with the swing's speed
+     plus a push outward, then flies in an arc, falls and fades */
+  var dv=dt>0?(sl-(B.prevSl==null?sl:B.prevSl))/dt:0;B.prevSl=sl;B.dragV=(B.dragV||0)*0.55+dv*0.45;
+  var BY=Y+R*(1-sy)*0.9;
+  if(panic&&B.sweat.length&&Math.abs(B.dragV)>W*1.2){
+    B.sweat.forEach(function(dp){var q=sweatAt(dp,t,R);if(!q||q.gr<0.5)return;var ox=Math.cos(q.a),oy=Math.sin(q.a);
+      B.fly.push({x:X+q.px*sx,y:BY+q.py*sy,vx:B.dragV*0.9+ox*R*1.6,vy:-R*1.6+oy*R*0.8,t0:t,r:q.dr})});
+    B.sweat=B.sweat.filter(function(dp){var q=sweatAt(dp,t,R);return !q||q.gr<0.5});B.swNext=t+0.7}
+  if(B.spin){var st0=t-B.spin.t0;for(var ri=0;ri<3;ri++){var rp=(st0-0.15-ri*0.2)/1.4;if(rp<0||rp>1)continue;
+    cx.save();cx.globalAlpha=0.9*(1-rp);var RC=['#ff5f6d','#ffc371','#fff275','#6dd47e','#4fc3f7','#7c6cff','#e66bff','#ff5f6d'];
+    if(cx.createConicGradient){var cg=cx.createConicGradient(t*2.5+ri,X,BY);RC.forEach(function(c,i){cg.addColorStop(i/(RC.length-1),c)});cx.strokeStyle=cg}
+    else cx.strokeStyle='hsl('+Math.round((t*200+ri*60)%360)+',90%,65%)';
+    cx.lineWidth=R*0.1*(1-rp)+1;cx.shadowColor='rgba(255,255,255,.7)';cx.shadowBlur=R*0.12;cx.beginPath();cx.arc(X,BY,R*(1.03+1.4*ease(rp)),0,7);cx.stroke();cx.restore()}}
+  drawBall(X,BY,R,sx,sy,wig+spinA,P,lv,cur);
+  B.fly=B.fly.filter(function(f){return t-f.t0<1.4});
+  B.fly.forEach(function(f){f.vy+=R*7*dt;f.x+=f.vx*dt;f.y+=f.vy*dt;var al=Math.min(1,(1.4-(t-f.t0))/0.4);
+    cx.save();cx.translate(f.x,f.y);cx.rotate(Math.atan2(f.vy,f.vx)-Math.PI/2);cx.globalAlpha=al;drop(f.r,1.5);cx.restore()});
+  cx.globalAlpha=1}
 function slotD(){return W*0.9}
 function otherSeen(sl){if(Math.abs(sl)<1)return false;var R0=Math.min(W,H-70)*0.33;return Math.abs(sl-Math.sign(sl)*slotD())<W/2+R0*0.85}
 function isDragging(){return sx!==null&&horiz}
@@ -383,18 +404,18 @@ function drawBall(X,Y,R,sx,sy,wig,P,lv,e){
       cx.beginPath();
       if(hh>=ew){cx.arc(0,-hh+ew,ew,Math.PI,0);cx.lineTo(ew,hh-ew);cx.arc(0,hh-ew,ew,0,Math.PI);cx.closePath()}
       else cx.ellipse(0,0,ew,Math.max(ew*0.1,hh),0,0,7);
-      cx.fill();
-      if(sd>0.25&&hh>ew&&e.tear>=0){var wl=Math.min(1,(e.tear-0.2)/0.6);if(wl>0){cx.clip();var wy=hh-(hh*0.7)*wl,tn=e.now||0;
+      var fa=ag>0.2?Math.min(1,(ag-0.2)/0.5):0;cx.globalAlpha=1-fa;cx.fill();cx.globalAlpha=1;
+      if(hh>ew&&e.tear>0.02){var wl=e.tear;if(wl>0){cx.clip();var wy=hh-(hh*0.7)*wl,tn=e.now||0;
         cx.beginPath();cx.moveTo(-ew*1.2,hh+ew);cx.lineTo(-ew*1.2,wy);for(var wx=-ew*1.2;wx<=ew*1.2;wx+=ew*0.3)cx.lineTo(wx,wy+Math.sin(wx/ew*3+tn*7+s)*ew*0.16);
         cx.lineTo(ew*1.2,hh+ew);cx.closePath();cx.fillStyle='#8fd3ff';cx.fill();cx.strokeStyle='#1d3f7a';cx.lineWidth=ew*0.16;cx.stroke();
         cx.fillStyle='#fff';cx.beginPath();cx.arc(-ew*0.35,wy+ew*0.45,ew*0.22,0,7);cx.fill()}}
       cx.restore();EP.push({x:ex,y:ey+hh*0.92,w:ew});
-      if(ag>0.25&&hh>ew)flame(ew,hh,e.now||0,s,Math.min(1,(ag-0.25)/0.5))}
+      if(fa>0.01&&hh>ew)flame(ew*(0.45+0.55*fa),hh*(0.4+0.6*fa),e.now||0,s,Math.min(1,fa*1.6))}
     cx.restore()}
   /* sad, comic style (Mi 2026-11-23): a stream of tears runs down from each eye: wobbly edges, bold navy outline,
      white glints flowing down, a drop swelling at the end and falling */
-  if(e.tear>=0.3&&sd>0.3)for(var ti=0;ti<EP.length;ti++){var q=EP[ti],tn=e.now||0,gw=Math.min(1,(e.tear-0.3)/0.8),y0=q.y,y1=y0+(R*1.05-y0)*gw,w=q.w*1.05;
-    if(y1-y0<2)continue;cx.save();cx.globalAlpha=Math.min(1,sd*1.4);
+  if(e.tear>0.05)for(var ti=0;ti<EP.length;ti++){var q=EP[ti],tn=e.now||0,gw=e.tear,y0=q.y,y1=y0+(R*1.05-y0)*gw,w=q.w*1.05;
+    if(y1-y0<2)continue;cx.save();cx.globalAlpha=Math.min(1,e.tear*2);
     var edge=function(side,y){return q.x+side*w/2+Math.sin(y/R*9-tn*8+ti*2)*w*0.14*side};
     cx.beginPath();cx.moveTo(edge(-1,y0),y0);for(var yy=y0;yy<=y1;yy+=R*0.03)cx.lineTo(edge(-1,yy),yy);
     cx.quadraticCurveTo(q.x,y1+w*0.6,edge(1,y1),y1);for(yy=y1;yy>=y0;yy-=R*0.03)cx.lineTo(edge(1,yy),yy);cx.closePath();
@@ -403,35 +424,36 @@ function drawBall(X,Y,R,sx,sy,wig,P,lv,e){
     var dq=(tn*1.3+ti*0.4)%1,dr2=w*0.32*(0.6+0.4*Math.min(1,dq*2)),dy=y1+w*0.35+(dq>0.6?(dq-0.6)*(dq-0.6)*R*3:0);
     cx.beginPath();cx.arc(q.x,dy,dr2,0,Math.PI);cx.quadraticCurveTo(q.x-dr2,dy-dr2*1.2,q.x,dy-dr2*2.3);cx.quadraticCurveTo(q.x+dr2,dy-dr2*1.2,q.x+dr2,dy);
     cx.fillStyle='#8fd3ff';cx.fill();cx.stroke();cx.restore()}
-  if(e.sweat&&e.sweat.length)for(var di=0;di<e.sweat.length;di++){var dp=e.sweat[di],tau=e.now-dp.t0;if(tau<0)continue;
-    var gr=Math.min(1,tau/0.35);gr=1-Math.pow(1-gr,3);var mv=Math.max(0,tau-0.6),rr=R*0.84,trav=0.5*dp.g*mv*mv,a=dp.a0+dp.side*trav;
-    if(trav>2.1)continue;
-    var al=Math.min(1,(2.1-trav)*2),dr=R*0.06*gr*(1+0.2*Math.min(1,mv*2)),px=Math.cos(a)*rr,py=Math.sin(a)*rr;
-    if(mv>0){cx.globalAlpha=al;cx.strokeStyle='rgba(225,242,255,.22)';cx.lineWidth=dr*0.7;cx.lineCap='round';cx.beginPath();
-      if(dp.side>0)cx.arc(0,0,rr,dp.a0,a);else cx.arc(0,0,rr,a,dp.a0);cx.stroke()}
-    var ang=mv>0?Math.atan2(Math.cos(a)*dp.side,-Math.sin(a)*dp.side):Math.PI/2,wob=mv>0?0:0.08*Math.sin(tau*30)*(1-gr*0.5);
-    cx.save();cx.translate(px,py);cx.rotate(ang-Math.PI/2);cx.scale(1-wob,1+wob);cx.globalAlpha=al;
-    var el=1+0.5*Math.min(1,mv*1.5); // stretches a little as it runs
-    cx.fillStyle='rgba(208,234,255,.92)';cx.beginPath();cx.moveTo(dr,0);cx.arc(0,0,dr,0,Math.PI);
-    cx.quadraticCurveTo(-dr,-dr*1.1*el,0,-dr*2.3*el);cx.quadraticCurveTo(dr,-dr*1.1*el,dr,0);cx.fill();
-    cx.fillStyle='rgba(255,255,255,.85)';cx.beginPath();cx.arc(-dr*0.35,dr*0.05,dr*0.28,0,7);cx.fill();
-    cx.restore();cx.globalAlpha=1}
+  if(e.sweat&&e.sweat.length)for(var di=0;di<e.sweat.length;di++){var dp=e.sweat[di],q=sweatAt(dp,e.now,R);if(!q)continue;
+    var al=Math.min(1,(2.1-q.trav)*2),a=q.a;
+    if(q.mv>0){cx.globalAlpha=al;cx.strokeStyle='rgba(225,242,255,.22)';cx.lineWidth=q.dr*0.7;cx.lineCap='round';cx.beginPath();
+      if(dp.side>0)cx.arc(0,0,q.rr,dp.a0,a);else cx.arc(0,0,q.rr,a,dp.a0);cx.stroke()}
+    var ang=q.mv>0?Math.atan2(Math.cos(a)*dp.side,-Math.sin(a)*dp.side):Math.PI/2,wob=q.mv>0?0:0.08*Math.sin(q.tau*30)*(1-q.gr*0.5);
+    cx.save();cx.translate(q.px,q.py);cx.rotate(ang-Math.PI/2);cx.scale(1-wob,1+wob);cx.globalAlpha=al;drop(q.dr,1+0.5*Math.min(1,q.mv*1.5));cx.restore();cx.globalAlpha=1}
   cx.restore()}
 /* angry eyes (Mi 2026-11-23): a comic-style flame burns in each eye: teardrop body, bold dark outline, orange / yellow /
    pale core, the tip whips left and right and trails up past the eye, little licks break off the tip and rise */
-function flamePath(w,h,t,ph,k){var W=w*k,by=h*0.4,sw=(Math.sin(t*9+ph)*0.5+Math.sin(t*15.3+ph*2)*0.2)*w*k*1.4,
+function flamePath(w,h,t,ph,k){var W=w*k,by=h*0.5,sw=(Math.sin(t*9+ph)*0.5+Math.sin(t*15.3+ph*2)*0.2)*w*k*1.4,
   sw2=Math.sin(t*9+ph-1.2)*w*k*0.9,tx=sw,ty=by-h*(0.6+1.45*k)*(0.92+0.08*Math.sin(t*13+ph));
   cx.beginPath();cx.moveTo(W,by);cx.arc(0,by,W,0,Math.PI);
   cx.bezierCurveTo(-W*1.15,by-h*0.55*k,sw2-W*0.7,by-h*1.15*k,tx,ty);
   cx.bezierCurveTo(sw2+W*0.6,by-h*0.95*k,W*1.15,by-h*0.5*k,W,by);cx.closePath();return{x:tx,y:ty}}
 function flame(w,h,t,s,al){cx.save();cx.globalAlpha=al;cx.lineJoin='round';
-  var ph=s>0?0:2.1,tip=flamePath(w*0.95,h,t,ph,1);cx.fillStyle='#ff5a1f';cx.fill();cx.strokeStyle='#6e0d0d';cx.lineWidth=w*0.2;cx.stroke();
-  flamePath(w*0.95,h,t,ph+0.7,0.64);cx.fillStyle='#ffb21a';cx.fill();
-  flamePath(w*0.95,h,t,ph+1.3,0.34);cx.fillStyle='#fff3a6';cx.fill();
+  var ph=s>0?0:2.1,tip=flamePath(w*1.55,h,t,ph,1);cx.fillStyle='#ff5a1f';cx.fill();
+  flamePath(w*1.55,h,t,ph+0.7,0.64);cx.fillStyle='#ffb21a';cx.fill();
+  flamePath(w*1.55,h,t,ph+1.3,0.34);cx.fillStyle='#fff3a6';cx.fill();
   for(var i=0;i<2;i++){var q=(t*1.7+i*0.5+ph)%1,sx2=tip.x+Math.sin(t*7+i*3+ph)*w*0.7,sy2=tip.y-q*h*1.1,r2=w*0.34*(1-q);if(r2<0.5)continue;
     cx.globalAlpha=al*(1-q);cx.beginPath();cx.arc(sx2,sy2,r2,0,Math.PI);cx.quadraticCurveTo(-r2+sx2,sy2-r2*1.2,sx2,sy2-r2*2.4);cx.quadraticCurveTo(r2+sx2,sy2-r2*1.2,sx2+r2,sy2);
-    cx.fillStyle='#ff8a2a';cx.fill();cx.lineWidth=w*0.14;cx.stroke()}
+    cx.fillStyle='#ff8a2a';cx.fill()}
   cx.restore()}
+// a sweat drop on the ball: where it is now (ball coords), or null once it has run off
+function sweatAt(dp,now,R){var tau=now-dp.t0;if(tau<0)return null;var gr=Math.min(1,tau/0.35);gr=1-Math.pow(1-gr,3);
+  var mv=Math.max(0,tau-0.6),rr=R*0.84,trav=0.5*dp.g*mv*mv;if(trav>2.1)return null;var a=dp.a0+dp.side*trav;
+  return{a:a,px:Math.cos(a)*rr,py:Math.sin(a)*rr,dr:R*0.06*gr*(1+0.2*Math.min(1,mv*2)),gr:gr,mv:mv,trav:trav,rr:rr,tau:tau}}
+// a water drop pointing along local +y (round end first), with a glint
+function drop(dr,el){cx.fillStyle='rgba(208,234,255,.92)';cx.beginPath();cx.moveTo(dr,0);cx.arc(0,0,dr,0,Math.PI);
+  cx.quadraticCurveTo(-dr,-dr*1.1*el,0,-dr*2.3*el);cx.quadraticCurveTo(dr,-dr*1.1*el,dr,0);cx.fill();
+  cx.fillStyle='rgba(255,255,255,.85)';cx.beginPath();cx.arc(-dr*0.35,dr*0.05,dr*0.28,0,7);cx.fill()}
 // a point on the front of the sphere: u in [-1.3,1.3] (0 = center) -> x offset and horizontal foreshortening
 function pos(u,R){var a=u*1.15;return{x:Math.sin(a)*R*0.82,y:-(1-Math.cos(a))*R*0.42,f:Math.max(0,Math.cos(a))}}
 
@@ -529,7 +551,7 @@ var loadSeq=0;
 function commitSwitch(sg,idx){ // sg: +1 = the new ball comes from the left, -1 = from the right
   var n=ed.voices.length;if(idx==null)idx=(vi-sg+n)%n;if(idx===vi)return;
   var nbE=(B.nb&&B.nb.sg===sg)?B.nb.e:{fx:sg*0.3,fy:0,rot:0,ew:1,len:1,open:1,smile:0};
-  B.oth={pal:palTo,e:{fx:B.fx.x,fy:B.fy.x,rot:B.rot.x,ew:B.ew.x,len:B.len.x,open:1,smile:0}};B.nb=null;
+  B.oth={pal:palTo,e:{fx:B.fx.x,fy:B.fy.x,rot:B.rot.x,ew:B.ew.x,len:B.len.x,open:1,smile:0,sweat:B.sweat}};B.nb=null;B.sweat=[];B.swOn=false;B.swNext=1e9;
   ['fx','fy','rot','ew','len','smile'].forEach(function(k){B[k].x=nbE[k];B[k].v=0});B.ew.t=1;B.len.t=1;B.smile.t=0;B.next=0;
   slide=slide-sg*slotD();slideV=0;B.mood={k:'lau',t0:(B.last||0)+0.35,dur:2.2};B.lauN=-1;useVoice(idx,true)}
 function useVoice(i,keepSentence){
@@ -577,12 +599,12 @@ S.addEventListener('input',function(){seeking=true;paint(S.value);if(A.duration)
 S.addEventListener('change',function(){if(A.duration)A.currentTime=A.duration*S.value/1000;seeking=false;if(showLyr){curLn=-1;follow(true)}});
 
 /* swipe left/right on the orb to change voice */
-var sx=null,sy=0,horiz=false;
-function down(x,y){if(showLyr)return;sx=x;sy=y;horiz=false}
-function move(x,y,e){if(sx===null)return;var dx=x-sx,dy=y-sy;if(!horiz&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.3)horiz=true;if(horiz){dragX=dx;if(e&&e.cancelable)e.preventDefault()}}
+var sx=null,sy=0,horiz=false,vmov=false;
+function down(x,y){if(showLyr)return;sx=x;sy=y;horiz=false;vmov=false}
+function move(x,y,e){if(sx===null)return;var dx=x-sx,dy=y-sy;if(Math.abs(dy)>12)vmov=true;if(!horiz&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.3)horiz=true;if(horiz){dragX=dx;if(e&&e.cancelable)e.preventDefault()}}
 function up(x){if(sx===null)return;var dx=x-sx;sx=null;dragX=0;
   if(horiz&&Math.abs(dx)>W*0.2)commitSwitch(dx>0?1:-1)
-  else if(!horiz&&Math.abs(dx)<10)toggleLyr(true)}
+  else if(!horiz&&!vmov&&Math.abs(dx)<10)toggleLyr(true)}
 var st=$('stage');
 st.addEventListener('touchstart',function(e){var t=e.touches[0];down(t.clientX,t.clientY)},{passive:true});
 st.addEventListener('touchmove',function(e){var t=e.touches[0];move(t.clientX,t.clientY,e)},{passive:false});
@@ -590,7 +612,21 @@ st.addEventListener('touchend',function(e){var t=e.changedTouches[0],was=showLyr
 var mdown=false;
 /* look-at-finger and ripple: anywhere on the screen, touch or mouse button held */
 var LK={on:false,x:0,y:0,up:-9};
-function lkSet(cx0,cy0){var r=st.getBoundingClientRect();LK.x=cx0-r.left;LK.y=cy0-r.top}
+function lkSet(cx0,cy0){var r=st.getBoundingClientRect();LK.x=cx0-r.left;LK.y=cy0-r.top;petMove()}
+/* petting (Mi 2026-11-23): rub up and down on top of the ball, each stroke within 30 degrees of vertical; after three
+   strokes it hops, spins once round with ∩ eyes and sends rainbow ripples out around itself, like Grok's bot.
+   Checked on every finger move (not per frame), so quick rubs are not missed. */
+var PET={y:null};
+function petMove(){var t=(performance.now()-t0)/1000,R0p=Math.min(W,H-70)*0.33,bxp=W/2+slide,byp=(H-70)/2+8,P0=PET;
+  var onTop=LK.on&&!isDragging()&&!showLyr&&LK.y>byp-R0p*1.3&&LK.y<byp-R0p*0.1&&Math.abs(LK.x-bxp)<R0p*0.85;
+  if(!onTop){P0.y=null;P0.dir=0;return}
+  if(P0.y==null){P0.y=P0.sy=LK.y;P0.x=P0.sx=LK.x;P0.dir=0;return}
+  var ddy=LK.y-P0.y;if(Math.abs(ddy)<R0p*0.012)return;var nd=ddy>0?1:-1;
+  if(P0.dir&&nd!==P0.dir){var sdy=Math.abs(P0.y-P0.sy),sdx=Math.abs(P0.x-P0.sx);
+    if(sdy>R0p*0.06&&sdx<=sdy*0.577){P0.st=(P0.st||[]).filter(function(x){return t-x<2});P0.st.push(t)}
+    P0.sy=P0.y;P0.sx=P0.x}
+  P0.dir=nd;P0.y=LK.y;P0.x=LK.x;
+  if(P0.st&&P0.st.length>=3&&!(B.spin&&t-B.spin.t0<2.2)){B.spin={t0:t};P0.st=[];if(/[?&]debug(&|$)/.test(location.search))document.body.setAttribute('data-spin',String(t));B.mood=null;B.daze=null;B.hop.v-=2.5;B.squash.v+=2}}
 function ripple(x,y){var c=(palTo&&palTo.g)||[140,140,160];
   ['a','b'].forEach(function(k){var d=document.createElement('div');d.className='rip '+k;d.style.left=x+'px';d.style.top=y+'px';d.style.borderColor='rgba('+c.join(',')+',.75)';
     d.style.background='radial-gradient(circle,rgba('+c.join(',')+',0) 45%,rgba('+c.join(',')+',.16) 100%)';document.body.appendChild(d);setTimeout(function(){d.remove()},1000)})}
@@ -658,7 +694,7 @@ function diag(){var c=[],el=$('ver');if(!el)return;
   if(!data)c.push('E1');
   if(tagFail)c.push('E4');
   if(lastTag&&!tagFail&&data&&data.editions&&data.editions[0]&&(!tagTop||tagTop>data.editions[0].stem))c.push('E3');
-  el.textContent='v'+((document.querySelector('meta[name=ui-version]')||{}).content||'?')+(c.length?' · '+c.join(' '):'')}
+  el.textContent='v0.'+((document.querySelector('meta[name=ui-version]')||{}).content||'?')+(c.length?' · '+c.join(' '):'')}
 var TAGAPI='https://data.jsdelivr.com/v1/packages/gh/Uomocapra/listen-0793b41dde/resolved?specifier=latest';
 function hosts(){return new Promise(function(res){var done=false,c=window.AbortController?new AbortController():null,
   t=setTimeout(function(){if(c)c.abort();fin(null)},4000);
