@@ -1,12 +1,12 @@
 {
- "code": 22,
- "name": "1.0.22",
- "size": 5331161,
- "sha256": "bab28768b14617a85871c762e0b7155c8d1387fe18ac0eb23f5e23c5df65d03c",
- "note": "这一版：新闻会更新得更及时，不会再停在旧的一期。",
+ "code": 23,
+ "name": "1.0.23",
+ "size": 5353809,
+ "sha256": "e959a6b2ddb0250864c19c255819e99bbb1e29b72f3d27c4b5988320f7c5da89",
+ "note": "这一版：换了新图标，球球戴上耳机了；点球就能看文字。",
  "urls": [
-  "https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@62b11c29fcb7953d1eb0360cbeca004ed24087bb/app/tingxinwen.apk",
-  "https://testingcf.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@62b11c29fcb7953d1eb0360cbeca004ed24087bb/app/tingxinwen.apk",
-  "https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@62b11c29fcb7953d1eb0360cbeca004ed24087bb/app/tingxinwen.apk"
+  "https://gcore.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@bad9a8a665c6208901dff8b65f9d4c92e54b10c5/app/tingxinwen.apk",
+  "https://testingcf.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@bad9a8a665c6208901dff8b65f9d4c92e54b10c5/app/tingxinwen.apk",
+  "https://fastly.jsdelivr.net/gh/Uomocapra/listen-0793b41dde@bad9a8a665c6208901dff8b65f9d4c92e54b10c5/app/tingxinwen.apk"
  ]
 }
