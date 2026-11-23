@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="17">
+<meta name="ui-version" content="18">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -600,14 +600,13 @@ size();requestAnimationFrame(frame);
    at once. Those hosts are asked too; if the API doesn't answer in 4 s, only the fixed hosts are used. */
 /* Error codes (Mi 2026-11-23), so Mom can read one out or send a screenshot. Shown next to the version, bottom left:
    E1 no edition list from any host (also in the subtitle)   E2-<why> no host could play the audio (also in the message)
-   E3 the newest tag is newer than the edition on screen (stale list)   E4 jsDelivr's tag API didn't answer (fixed hosts only) */
-var lastTag=null,tagFail=false;
+   E3 the list at the newest tag didn't come in, or names a newer edition than the one on screen (stale list).
+      v18: page-only pushes also get a tag (tag_site.py, stamped with the push time), so the tag's time says nothing   E4 jsDelivr's tag API didn't answer (fixed hosts only) */
+var lastTag=null,tagFail=false,tagTop=null;
 function diag(){var c=[],el=$('ver');if(!el)return;
   if(!data)c.push('E1');
   if(tagFail)c.push('E4');
-  var m=lastTag&&String(lastTag).match(/^1\.(\d{8})\.(\d+)$/);
-  if(m&&data&&data.editions&&data.editions[0]){var hm=('000000'+m[2]).slice(-6).slice(0,4),
-    ts=m[1].slice(0,4)+'-'+m[1].slice(4,6)+'-'+m[1].slice(6)+'-'+hm;if(ts>data.editions[0].stem)c.push('E3')}
+  if(lastTag&&!tagFail&&data&&data.editions&&data.editions[0]&&(!tagTop||tagTop>data.editions[0].stem))c.push('E3');
   el.textContent='v'+((document.querySelector('meta[name=ui-version]')||{}).content||'?')+(c.length?' · '+c.join(' '):'')}
 var TAGAPI='https://data.jsdelivr.com/v1/packages/gh/Uomocapra/listen-0793b41dde/resolved?specifier=latest';
 function hosts(){return new Promise(function(res){var done=false,c=window.AbortController?new AbortController():null,
@@ -619,6 +618,7 @@ function hosts(){return new Promise(function(res){var done=false,c=window.AbortC
     .then(function(d){fin(d&&d.version)}).catch(function(){fin(null)})})}
 /* In the app, ask every host for the list of editions and keep the newest ("built"): some jsDelivr nodes lag. Waits for all hosts, or 2.5 s after the first answer. */
 function fetchIndex(){return hosts().then(function(H){
+  tagTop=null;
   return new Promise(function(res,rej){var best=null,all=[],left=H.length,over=false;
     /* keep the newest list and add the past editions the others know, newest first. The newest list's "stems" says what
        still exists: an edition dropped from the mirror but named by a stale cached list is left out. */
@@ -632,7 +632,7 @@ function fetchIndex(){return hosts().then(function(H){
       fetch(b+'data/index.json?'+Date.now(),{cache:'no-store',signal:c?c.signal:undefined}).then(function(r){return r.ok?r.json():null})
         .then(function(d){if(!d||!d.editions||!d.editions.length)return;all.push(d);
           if(!best||String(d.built)>String(best.built))best=d;
-          if(i<H.tagged)setTimeout(fin,300);else if(!H.tagged&&all.length===1)setTimeout(fin,2500)})
+          if(i<H.tagged){var tt=d.editions.map(function(e){return e.stem}).sort().pop();if(!tagTop||tt>tagTop)tagTop=tt;setTimeout(fin,300)}else if(!H.tagged&&all.length===1)setTimeout(fin,2500)})
         .catch(function(){}).then(function(){if(--left===0)fin()})})})})}
 /* The app stays open in the background (back = keep running), so new editions must show up without closing it
    (Mi 2026-11-21): whenever the page comes back into view, and every 3 minutes while it is on screen, read the tiny
