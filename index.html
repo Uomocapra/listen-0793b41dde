@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#000000">
 <!-- raise this number whenever the page changes: the Android app then picks up the new page by itself (Updater.java) -->
-<meta name="ui-version" content="21">
+<meta name="ui-version" content="22">
 <title>听新闻</title>
 <style>
 :root{--bg:#fafafa;--fg:#111;--mute:#8a8a8e;--chip:#ececf0;--sheet:#fff;--btn:#111;--btnfg:#fff;--line:#e3e3e8;--track:#d9d9de}
@@ -299,8 +299,9 @@ function bot(t,P,lv,sl){
   /* moods (Mi 2026-11-23): 喜 = the ∩ smile above; 怒 = woken from a daze by a finger: lids slant in, red tint, shake;
      哀 = right after pausing, or now and then when idle: lids slant out, looks down, sinks, one tear;
      乐 = the ball that was just swiped in, or now and then when idle: ∩ eyes and quick little bounces */
-  if(B.wasWork&&!work&&!B.mood)B.mood={k:'sad',t0:t,dur:2.6};B.wasWork=work;
-  if(!work&&!B.daze&&!B.mood&&!LK.on&&t>B.nextMood&&t>B.smileUntil+0.5){B.mood={k:Math.random()<.5?'sad':'lau',t0:t,dur:rnd(2.2,3)};B.nextMood=t+rnd(10,18)}
+  // Mi 2026-11-27: crying only 1 time in 100 (after a pause or idle), angry only 1 in 20 (see pointerdown)
+  if(B.wasWork&&!work&&!B.mood&&Math.random()<.01)B.mood={k:'sad',t0:t,dur:2.6};B.wasWork=work;
+  if(!work&&!B.daze&&!B.mood&&!LK.on&&t>B.nextMood&&t>B.smileUntil+0.5){B.mood={k:Math.random()<.01?'sad':'lau',t0:t,dur:rnd(2.2,3)};B.nextMood=t+rnd(10,18)}
   if(B.mood&&t-B.mood.t0>B.mood.dur){B.mood=null;B.nextMood=Math.max(B.nextMood,t+rnd(6,10))}
   var mk=B.mood&&t>=B.mood.t0?B.mood.k:null,mt=B.mood?t-B.mood.t0:0;
   B.ang.t=mk==='ang'?1:0;B.sad.t=mk==='sad'?1:0;
@@ -651,7 +652,7 @@ function petMove(){var t=(performance.now()-t0)/1000,R0p=Math.min(W,H-70)*0.33,b
 function ripple(x,y){var c=(palTo&&palTo.g)||[140,140,160];
   ['a','b'].forEach(function(k){var d=document.createElement('div');d.className='rip '+k;d.style.left=x+'px';d.style.top=y+'px';d.style.borderColor='rgba('+c.join(',')+',.75)';
     d.style.background='radial-gradient(circle,rgba('+c.join(',')+',0) 45%,rgba('+c.join(',')+',.16) 100%)';document.body.appendChild(d);setTimeout(function(){d.remove()},1000)})}
-document.addEventListener('pointerdown',function(e){if(B.daze&&!showLyr){B.mood={k:'ang',t0:B.last||0,dur:2.4}}LK.on=true;lkSet(e.clientX,e.clientY);ripple(e.clientX,e.clientY)},{passive:true});
+document.addEventListener('pointerdown',function(e){if(B.daze&&!showLyr&&Math.random()<.05){B.mood={k:'ang',t0:B.last||0,dur:2.4}}LK.on=true;lkSet(e.clientX,e.clientY);ripple(e.clientX,e.clientY)},{passive:true});
 document.addEventListener('pointermove',function(e){if(LK.on)lkSet(e.clientX,e.clientY)},{passive:true});
 document.addEventListener('touchmove',function(e){if(LK.on&&e.touches[0])lkSet(e.touches[0].clientX,e.touches[0].clientY)},{passive:true});
 function lkUp(){if(LK.on){LK.on=false;LK.up=(performance.now()-t0)/1000}}
